@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Trash2, Plus, Save, Edit2, X, Upload, Download, Settings, LogOut, Users } from 'lucide-react';
+import { Camera, Trash2, Plus, Save, Edit2, X, Upload, Download, Settings, LogOut, Users, Search, TrendingUp, Clock, Key } from 'lucide-react';
 
 const FIREBASE_URL = 'https://gestor-modems-default-rtdb.firebaseio.com';
 
@@ -8,14 +8,21 @@ export default function ModemManager() {
   const [loginMode, setLoginMode] = useState(true);
   const [loginData, setLoginData] = useState({ usuario: '', contraseña: '' });
   const [showUserForm, setShowUserForm] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const [newUserData, setNewUserData] = useState({ usuario: '', contraseña: '', esAdmin: false });
+  const [changePassData, setChangePassData] = useState({ actual: '', nueva: '', confirmar: '' });
   const [modems, setModems] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showStats, setShowStats] = useState(false);
+  const [showHistorial, setShowHistorial] = useState(false);
   const [confirmMessage, setConfirmMessage] = useState('');
   const [confirmAction, setConfirmAction] = useState(null);
   const [editingId, setEditingId] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterTienda, setFilterTienda] = useState('');
+  const [filterProveedor, setFilterProveedor] = useState('');
   const [formData, setFormData] = useState({
     tienda: '',
     proveedor: '',
@@ -25,6 +32,7 @@ export default function ModemManager() {
   });
   const [syncStatus, setSyncStatus] = useState('Desconectado');
   const [users, setUsers] = useState([]);
+  const [historial, setHistorial] = useState([]);
 
   useEffect(() => {
     loadUsers();
@@ -33,9 +41,11 @@ export default function ModemManager() {
   useEffect(() => {
     if (currentUser) {
       loadModems();
+      loadHistorial();
     }
   }, [currentUser]);
 
+  // FIREBASE FUNCTIONS
   const firebaseGet = async (path) => {
     try {
       const response = await fetch(`${FIREBASE_URL}/${path}.json`);
@@ -61,6 +71,30 @@ export default function ModemManager() {
     }
   };
 
+  // HISTORIAL
+  const addToHistorial = async (accion, detalles) => {
+    const nuevoRegistro = {
+      id: `hist:${Date.now()}`,
+      usuario: currentUser.usuario,
+      accion,
+      detalles,
+      fecha: new Date().toLocaleString('es-MX'),
+      timestamp: Date.now()
+    };
+    
+    const nuevoHistorial = [nuevoRegistro, ...historial].slice(0, 100);
+    await firebaseSet(`historial/${currentUser.id}`, nuevoHistorial);
+    setHistorial(nuevoHistorial);
+  };
+
+  const loadHistorial = async () => {
+    const data = await firebaseGet(`historial/${currentUser.id}`);
+    if (data) {
+      setHistorial(Array.isArray(data) ? data : Object.values(data));
+    }
+  };
+
+  // USUARIOS
   const loadUsers = async () => {
     const data = await firebaseGet('users');
     if (data) {
@@ -114,7 +148,8 @@ export default function ModemManager() {
       id: `user:${Date.now()}`,
       usuario: loginData.usuario,
       contraseña: loginData.contraseña,
-      esAdmin: users.length === 0
+      esAdmin: users.length === 0,
+      fechaCreacion: new Date().toLocaleString('es-MX')
     };
 
     const updatedUsers = [...users, newUser];
@@ -123,12 +158,40 @@ export default function ModemManager() {
     if (success) {
       if (newUser.esAdmin) {
         setCurrentUser(newUser);
-        setSyncStatus('✓ Primer usuario creado como ADMIN');
       } else {
         alert('Usuario registrado. Espera a que un admin lo apruebe.');
       }
       setLoginData({ usuario: '', contraseña: '' });
       setLoginMode(true);
+    }
+  };
+
+  const cambiarContraseña = async () => {
+    if (!changePassData.actual || !changePassData.nueva || !changePassData.confirmar) {
+      alert('Completa todos los campos');
+      return;
+    }
+
+    if (changePassData.actual !== currentUser.contraseña) {
+      alert('Contraseña actual incorrecta');
+      return;
+    }
+
+    if (changePassData.nueva !== changePassData.confirmar) {
+      alert('Las nuevas contraseñas no coinciden');
+      return;
+    }
+
+    const userActualizado = { ...currentUser, contraseña: changePassData.nueva };
+    const updatedUsers = users.map(u => u.id === currentUser.id ? userActualizado : u);
+    
+    const success = await saveUsers(updatedUsers);
+    if (success) {
+      setCurrentUser(userActualizado);
+      setShowProfileModal(false);
+      setChangePassData({ actual: '', nueva: '', confirmar: '' });
+      alert('Contraseña cambiada exitosamente');
+      await addToHistorial('Cambio de contraseña', 'Contraseña actualizada');
     }
   };
 
@@ -147,7 +210,8 @@ export default function ModemManager() {
       id: `user:${Date.now()}`,
       usuario: newUserData.usuario,
       contraseña: newUserData.contraseña,
-      esAdmin: newUserData.esAdmin
+      esAdmin: newUserData.esAdmin,
+      fechaCreacion: new Date().toLocaleString('es-MX')
     };
 
     const updatedUsers = [...users, newUser];
@@ -157,6 +221,7 @@ export default function ModemManager() {
       setNewUserData({ usuario: '', contraseña: '', esAdmin: false });
       setShowUserForm(false);
       alert(`Usuario "${newUser.usuario}" creado exitosamente`);
+      await addToHistorial('Crear usuario', `Usuario: ${newUser.usuario}`);
     }
   };
 
@@ -167,8 +232,10 @@ export default function ModemManager() {
   };
 
   const deleteUserAction = async (userId) => {
+    const usuario = users.find(u => u.id === userId);
     const updated = users.filter(u => u.id !== userId);
     await saveUsers(updated);
+    await addToHistorial('Eliminar usuario', `Usuario: ${usuario.usuario}`);
     setShowConfirm(false);
   };
 
@@ -177,6 +244,7 @@ export default function ModemManager() {
     setSyncStatus('Sesión cerrada');
   };
 
+  // MÓDEMS
   const loadModems = async () => {
     try {
       const data = await firebaseGet(`modems/${currentUser.id}`);
@@ -226,9 +294,10 @@ export default function ModemManager() {
 
     try {
       const modemsObj = {};
+      const nuevoModem = { ...formData, id: editingId || `modem:${Date.now()}` };
       const newModemsData = editingId
-        ? modems.map(m => m.id === editingId ? { ...formData, id: editingId } : m)
-        : [...modems, { ...formData, id: `modem:${Date.now()}` }];
+        ? modems.map(m => m.id === editingId ? nuevoModem : m)
+        : [...modems, nuevoModem];
 
       newModemsData.forEach((modem, index) => {
         modemsObj[`modem_${index}`] = modem;
@@ -238,6 +307,9 @@ export default function ModemManager() {
       
       if (success) {
         setModems(newModemsData);
+        const accion = editingId ? 'Editar módem' : 'Crear módem';
+        const detalles = `${formData.tienda} - ${formData.proveedor} - ${formData.serie}`;
+        await addToHistorial(accion, detalles);
         setFormData({ tienda: '', proveedor: '', serie: '', modelo: '', fotos: [] });
         setShowForm(false);
         setEditingId(null);
@@ -256,6 +328,7 @@ export default function ModemManager() {
 
   const deleteModemAction = async (id) => {
     try {
+      const modemAEliminar = modems.find(m => m.id === id);
       const newModemsData = modems.filter(m => m.id !== id);
       const modemsObj = {};
       
@@ -267,6 +340,7 @@ export default function ModemManager() {
       
       if (success) {
         setModems(newModemsData);
+        await addToHistorial('Eliminar módem', `${modemAEliminar.tienda} - ${modemAEliminar.serie}`);
         setSyncStatus('✓ Eliminado');
       }
       setShowConfirm(false);
@@ -332,6 +406,7 @@ export default function ModemManager() {
         
         if (success) {
           setModems(newModemsData);
+          await addToHistorial('Importar módems', `${importedData.length} módems importados`);
           alert(`${importedData.length} módems importados`);
         }
       } catch {
@@ -342,12 +417,40 @@ export default function ModemManager() {
     e.target.value = '';
   };
 
+  // FILTROS Y BÚSQUEDA
+  const modemsFiltered = modems.filter(modem => {
+    const matchSearch = modem.tienda.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                       modem.proveedor.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                       modem.serie.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchTienda = !filterTienda || modem.tienda === filterTienda;
+    const matchProveedor = !filterProveedor || modem.proveedor === filterProveedor;
+    return matchSearch && matchTienda && matchProveedor;
+  });
+
+  // ESTADÍSTICAS
+  const stats = {
+    totalModems: modems.length,
+    tiendas: [...new Set(modems.map(m => m.tienda))].length,
+    proveedores: [...new Set(modems.map(m => m.proveedor))].length,
+    modemsPorTienda: modems.reduce((acc, m) => {
+      acc[m.tienda] = (acc[m.tienda] || 0) + 1;
+      return acc;
+    }, {}),
+    modemsPorProveedor: modems.reduce((acc, m) => {
+      acc[m.proveedor] = (acc[m.proveedor] || 0) + 1;
+      return acc;
+    }, {})
+  };
+
+  const tiendasList = [...new Set(modems.map(m => m.tienda))];
+  const proveedoresList = [...new Set(modems.map(m => m.proveedor))];
+
   if (!currentUser) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow-2xl p-8 max-w-md w-full">
           <h1 className="text-3xl font-bold text-center mb-2 text-gray-800">Gestor de Módems</h1>
-          <p className="text-center text-gray-600 mb-6">Firebase + Vercel</p>
+          <p className="text-center text-gray-600 mb-6">Firebase + Vercel v2.0</p>
 
           <div className="flex gap-2 mb-4">
             <button
@@ -397,11 +500,11 @@ export default function ModemManager() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-800">Gestor de Módems</h1>
+              <h1 className="text-3xl font-bold text-gray-800">Gestor de Módems v2.0</h1>
               <div className="flex items-center gap-4 mt-2">
                 <span className="text-sm text-gray-600">{syncStatus}</span>
                 <span className={`px-3 py-1 rounded-full text-xs font-semibold ${currentUser.esAdmin ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
@@ -411,7 +514,12 @@ export default function ModemManager() {
             </div>
 
             <div className="flex gap-2 items-center">
-              <span className="text-sm text-gray-600">{currentUser.usuario}</span>
+              <button
+                onClick={() => setShowProfileModal(true)}
+                className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
+              >
+                <Key size={20} />
+              </button>
               <button
                 onClick={logout}
                 className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
@@ -421,7 +529,7 @@ export default function ModemManager() {
             </div>
           </div>
 
-          {!showForm && !showSettings && !showUserForm && (
+          {!showForm && !showSettings && !showUserForm && !showStats && !showHistorial && (
             <div className="flex gap-2 mb-6 flex-wrap">
               {currentUser.esAdmin && (
                 <button
@@ -433,6 +541,20 @@ export default function ModemManager() {
                 </button>
               )}
               <button
+                onClick={() => setShowStats(true)}
+                className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+              >
+                <TrendingUp size={20} />
+                Estadísticas
+              </button>
+              <button
+                onClick={() => setShowHistorial(true)}
+                className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700"
+              >
+                <Clock size={20} />
+                Historial
+              </button>
+              <button
                 onClick={() => setShowSettings(true)}
                 className="flex items-center gap-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700"
               >
@@ -440,7 +562,7 @@ export default function ModemManager() {
               </button>
               <button
                 onClick={exportData}
-                className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+                className="flex items-center gap-2 bg-cyan-600 text-white px-4 py-2 rounded-lg hover:bg-cyan-700"
               >
                 <Download size={20} />
               </button>
@@ -454,6 +576,139 @@ export default function ModemManager() {
               >
                 <Plus size={20} />
                 Nuevo
+              </button>
+            </div>
+          )}
+
+          {showProfileModal && (
+            <div className="bg-indigo-50 p-6 rounded-lg mb-6 border-2 border-indigo-200">
+              <h2 className="text-xl font-semibold mb-4">Mi Perfil</h2>
+              <div className="space-y-4 max-w-md">
+                <div className="bg-white p-4 rounded border border-indigo-300">
+                  <p className="text-sm text-gray-600">Usuario: <strong>{currentUser.usuario}</strong></p>
+                  <p className="text-sm text-gray-600 mt-2">Rol: <strong>{currentUser.esAdmin ? 'Administrador' : 'Usuario'}</strong></p>
+                  <p className="text-sm text-gray-600 mt-2">Creado: <strong>{currentUser.fechaCreacion}</strong></p>
+                </div>
+
+                <div className="border-t border-indigo-300 pt-4 mt-4">
+                  <h3 className="font-semibold mb-3">Cambiar Contraseña</h3>
+                  <input
+                    type="password"
+                    value={changePassData.actual}
+                    onChange={(e) => setChangePassData({...changePassData, actual: e.target.value})}
+                    placeholder="Contraseña actual"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-2"
+                  />
+                  <input
+                    type="password"
+                    value={changePassData.nueva}
+                    onChange={(e) => setChangePassData({...changePassData, nueva: e.target.value})}
+                    placeholder="Nueva contraseña"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-2"
+                  />
+                  <input
+                    type="password"
+                    value={changePassData.confirmar}
+                    onChange={(e) => setChangePassData({...changePassData, confirmar: e.target.value})}
+                    placeholder="Confirmar contraseña"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-3"
+                  />
+                  <div className="flex gap-3">
+                    <button
+                      onClick={cambiarContraseña}
+                      className="flex-1 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
+                    >
+                      Actualizar
+                    </button>
+                    <button
+                      onClick={() => setShowProfileModal(false)}
+                      className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg"
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showStats && (
+            <div className="bg-green-50 p-6 rounded-lg mb-6 border-2 border-green-200">
+              <h2 className="text-xl font-semibold mb-4">Estadísticas</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-white p-4 rounded border border-green-300">
+                  <p className="text-sm text-gray-600">Total de Módems</p>
+                  <p className="text-3xl font-bold text-green-600">{stats.totalModems}</p>
+                </div>
+                <div className="bg-white p-4 rounded border border-green-300">
+                  <p className="text-sm text-gray-600">Tiendas</p>
+                  <p className="text-3xl font-bold text-blue-600">{stats.tiendas}</p>
+                </div>
+                <div className="bg-white p-4 rounded border border-green-300">
+                  <p className="text-sm text-gray-600">Proveedores</p>
+                  <p className="text-3xl font-bold text-purple-600">{stats.proveedores}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <h3 className="font-semibold mb-3">Módems por Tienda</h3>
+                  <div className="space-y-2">
+                    {Object.entries(stats.modemsPorTienda).map(([tienda, count]) => (
+                      <div key={tienda} className="flex justify-between bg-white p-2 rounded border border-green-200">
+                        <span>{tienda}</span>
+                        <span className="font-bold text-green-600">{count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <h3 className="font-semibold mb-3">Módems por Proveedor</h3>
+                  <div className="space-y-2">
+                    {Object.entries(stats.modemsPorProveedor).map(([proveedor, count]) => (
+                      <div key={proveedor} className="flex justify-between bg-white p-2 rounded border border-green-200">
+                        <span>{proveedor}</span>
+                        <span className="font-bold text-purple-600">{count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowStats(false)}
+                className="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg"
+              >
+                Cerrar
+              </button>
+            </div>
+          )}
+
+          {showHistorial && (
+            <div className="bg-purple-50 p-6 rounded-lg mb-6 border-2 border-purple-200">
+              <h2 className="text-xl font-semibold mb-4">Historial de Cambios</h2>
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {historial.length === 0 ? (
+                  <p className="text-gray-600">Sin registros</p>
+                ) : (
+                  historial.map((reg) => (
+                    <div key={reg.id} className="bg-white p-3 rounded border border-purple-200">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-semibold text-purple-700">{reg.accion}</p>
+                          <p className="text-sm text-gray-600">{reg.detalles}</p>
+                        </div>
+                        <span className="text-xs text-gray-500">{reg.fecha}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              <button
+                onClick={() => setShowHistorial(false)}
+                className="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg mt-4"
+              >
+                Cerrar
               </button>
             </div>
           )}
@@ -506,7 +761,7 @@ export default function ModemManager() {
 
               <div className="pt-4 border-t border-amber-300">
                 <h3 className="font-semibold mb-3">Usuarios Registrados</h3>
-                <div className="space-y-2">
+                <div className="space-y-2 max-h-64 overflow-y-auto">
                   {users.map((user) => (
                     <div key={user.id} className="flex items-center justify-between bg-white p-3 rounded border border-amber-200">
                       <div className="flex gap-2">
@@ -530,13 +785,14 @@ export default function ModemManager() {
 
           {showSettings && currentUser.esAdmin && (
             <div className="bg-blue-50 p-6 rounded-lg mb-6 border-2 border-blue-200">
-              <h2 className="text-xl font-semibold mb-4">Información</h2>
-              <div className="bg-green-50 border border-green-300 rounded-lg p-4">
-                <p className="text-green-800">✅ Firebase está conectado y funcionando</p>
+              <h2 className="text-xl font-semibold mb-4">Información del Sistema</h2>
+              <div className="bg-green-50 border border-green-300 rounded-lg p-4 mb-4">
+                <p className="text-green-800">✅ Firebase conectado y funcionando</p>
+                <p className="text-sm text-green-700 mt-2">Todos los datos se guardan en Firebase Realtime Database</p>
               </div>
               <button
                 onClick={() => setShowSettings(false)}
-                className="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg mt-4"
+                className="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg"
               >
                 Cerrar
               </button>
@@ -650,14 +906,49 @@ export default function ModemManager() {
             </div>
           )}
 
+          {!showForm && !showSettings && !showUserForm && !showStats && !showHistorial && (
+            <div className="mb-6 flex gap-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-3 text-gray-400" size={20} />
+                <input
+                  type="text"
+                  placeholder="Buscar por tienda, proveedor o serie..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg"
+                />
+              </div>
+              <select
+                value={filterTienda}
+                onChange={(e) => setFilterTienda(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg"
+              >
+                <option value="">Todas las tiendas</option>
+                {tiendasList.map(t => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+              <select
+                value={filterProveedor}
+                onChange={(e) => setFilterProveedor(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg"
+              >
+                <option value="">Todos los proveedores</option>
+                {proveedoresList.map(p => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {modems.length === 0 ? (
+            {modemsFiltered.length === 0 ? (
               <div className="col-span-full text-center py-12 text-gray-500">
                 <Camera size={48} className="mx-auto mb-4 opacity-50" />
                 <p>No hay módems registrados</p>
               </div>
             ) : (
-              modems.map((modem) => (
+              modemsFiltered.map((modem) => (
                 <div key={modem.id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md">
                   <div className="mb-3">
                     <h3 className="text-lg font-semibold text-blue-700 mb-1">{modem.tienda}</h3>
