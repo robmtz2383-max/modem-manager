@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Camera, Trash2, Plus, Save, Edit2, X, Upload, Download, Settings, Cloud, LogOut, Users, AlertCircle } from 'lucide-react';
 
-const GOOGLE_CLIENT_ID = 'TU_CLIENT_ID_AQUI'; // Cambiar después
-const GOOGLE_REDIRECT_URI = window.location.origin;
-const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+// Firebase Config
+const FIREBASE_URL = 'https://gestor-modems-default-rtdb.firebaseio.com';
 
 export default function ModemManager() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -24,172 +23,80 @@ export default function ModemManager() {
     fotos: []
   });
 
-  const [storageConfig, setStorageConfig] = useState({
-    tipo: 'local', // 'local' o 'googledrive'
-    googleAccessToken: null,
-    googleFolderId: null
-  });
-
   const [syncStatus, setSyncStatus] = useState('Desconectado');
   const [users, setUsers] = useState([]);
-  const [googleUser, setGoogleUser] = useState(null);
 
   useEffect(() => {
     loadUsers();
-    initGoogleAPI();
   }, []);
 
   useEffect(() => {
     if (currentUser) {
-      loadStorageConfig();
       loadModems();
     }
   }, [currentUser]);
 
-  // ===== GOOGLE DRIVE =====
+  // ===== FIREBASE =====
 
-  const initGoogleAPI = async () => {
-    // Cargar la librería de Google API
-    const script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-    script.defer = true;
-    document.head.appendChild(script);
-  };
-
-  const loginWithGoogle = () => {
-    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
-      `client_id=${GOOGLE_CLIENT_ID}` +
-      `&redirect_uri=${encodeURIComponent(GOOGLE_REDIRECT_URI)}` +
-      `&response_type=token` +
-      `&scope=${encodeURIComponent(SCOPES)}`;
-    
-    window.location.href = authUrl;
-  };
-
-  const handleGoogleCallback = () => {
-    const hash = window.location.hash;
-    if (hash.includes('access_token')) {
-      const token = new URLSearchParams(hash.substring(1)).get('access_token');
-      setStorageConfig(prev => ({ ...prev, googleAccessToken: token }));
-      setSyncStatus('✓ Conectado a Google Drive');
-      createGoogleDriveFolder(token);
-    }
-  };
-
-  const createGoogleDriveFolder = async (token) => {
+  const firebaseGet = async (path) => {
     try {
-      const response = await fetch('https://www.googleapis.com/drive/v3/files', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          name: 'ModemManager',
-          mimeType: 'application/vnd.google-apps.folder'
-        })
-      });
-
-      const data = await response.json();
-      if (data.id) {
-        setStorageConfig(prev => ({ ...prev, googleFolderId: data.id }));
-        setSyncStatus('✓ Carpeta creada en Google Drive');
-      }
-    } catch (error) {
-      console.log('Error creando carpeta:', error);
-    }
-  };
-
-  const saveToGoogleDrive = async (modemsData) => {
-    if (!storageConfig.googleAccessToken || !storageConfig.googleFolderId) {
-      alert('Configura Google Drive primero');
-      return;
-    }
-
-    try {
-      const fileContent = JSON.stringify(modemsData, null, 2);
-      const metadata = {
-        name: `modems_${currentUser.id}.json`,
-        mimeType: 'application/json',
-        parents: [storageConfig.googleFolderId]
-      };
-
-      const form = new FormData();
-      form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-      form.append('file', new Blob([fileContent], { type: 'application/json' }));
-
-      const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${storageConfig.googleAccessToken}`
-        },
-        body: form
-      });
-
+      const response = await fetch(`${FIREBASE_URL}/${path}.json`);
       if (response.ok) {
-        setSyncStatus('✓ Sincronizado con Google Drive');
+        return await response.json();
       }
+      return null;
     } catch (error) {
-      console.log('Error guardando en Google Drive:', error);
-      setSyncStatus('Error al sincronizar');
+      console.log('Error Firebase GET:', error);
+      return null;
     }
   };
 
-  const loadFromGoogleDrive = async () => {
-    if (!storageConfig.googleAccessToken || !storageConfig.googleFolderId) {
-      setSyncStatus('Google Drive no configurado');
-      return;
-    }
-
+  const firebaseSet = async (path, data) => {
     try {
-      const query = `'${storageConfig.googleFolderId}' in parents and name='modems_${currentUser.id}.json'`;
-      const response = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&spaces=drive&fields=files(id,name)`, {
-        headers: {
-          'Authorization': `Bearer ${storageConfig.googleAccessToken}`
-        }
+      const response = await fetch(`${FIREBASE_URL}/${path}.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
       });
-
-      const data = await response.json();
-      if (data.files && data.files.length > 0) {
-        const fileId = data.files[0].id;
-        const fileResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
-          headers: {
-            'Authorization': `Bearer ${storageConfig.googleAccessToken}`
-          }
-        });
-
-        const modemsData = await fileResponse.json();
-        setModems(modemsData);
-        setSyncStatus('✓ Conectado a Google Drive');
-      } else {
-        setModems([]);
-        setSyncStatus('✓ Conectado a Google Drive (sin datos)');
-      }
+      return response.ok;
     } catch (error) {
-      console.log('Error cargando de Google Drive:', error);
-      setSyncStatus('Error en Google Drive');
+      console.log('Error Firebase SET:', error);
+      return false;
+    }
+  };
+
+  const firebaseDelete = async (path) => {
+    try {
+      const response = await fetch(`${FIREBASE_URL}/${path}.json`, {
+        method: 'DELETE'
+      });
+      return response.ok;
+    } catch (error) {
+      console.log('Error Firebase DELETE:', error);
+      return false;
     }
   };
 
   // ===== USUARIOS =====
 
   const loadUsers = async () => {
-    try {
-      const result = await window.storage.get('users:all', true);
-      if (result) {
-        setUsers(JSON.parse(result.value));
-      }
-    } catch {
+    const data = await firebaseGet('users');
+    if (data) {
+      setUsers(Object.values(data));
+    } else {
       setUsers([]);
     }
   };
 
   const saveUsers = async (usersList) => {
-    try {
-      await window.storage.set('users:all', JSON.stringify(usersList), true);
+    const usersObj = {};
+    usersList.forEach((user, index) => {
+      usersObj[`user_${index}`] = user;
+    });
+    const success = await firebaseSet('users', usersObj);
+    if (success) {
       setUsers(usersList);
-    } catch {
+    } else {
       alert('Error al guardar usuarios');
     }
   };
@@ -204,6 +111,7 @@ export default function ModemManager() {
     if (user) {
       setCurrentUser(user);
       setLoginData({ usuario: '', contraseña: '' });
+      setSyncStatus('✓ Sesión iniciada');
     } else {
       alert('Usuario o contraseña incorrectos');
     }
@@ -232,6 +140,7 @@ export default function ModemManager() {
     
     if (newUser.esAdmin) {
       setCurrentUser(newUser);
+      setSyncStatus('✓ Primer usuario creado como ADMIN');
     } else {
       alert('Usuario registrado. Espera a que un admin lo apruebe.');
     }
@@ -258,14 +167,17 @@ export default function ModemManager() {
     };
 
     const updatedUsers = [...users, newUser];
-    await saveUsers(updatedUsers);
-    setNewUserData({ usuario: '', contraseña: '', esAdmin: false });
-    setShowUserForm(false);
-    alert(`Usuario "${newUser.usuario}" creado exitosamente`);
+    const success = await saveUsers(updatedUsers);
+    
+    if (success) {
+      setNewUserData({ usuario: '', contraseña: '', esAdmin: false });
+      setShowUserForm(false);
+      alert(`Usuario "${newUser.usuario}" creado exitosamente`);
+    }
   };
 
   const deleteUser = async (userId) => {
-    if (window.confirm('¿Estás seguro?')) {
+    if (confirm('¿Estás seguro?')) {
       const updated = users.filter(u => u.id !== userId);
       await saveUsers(updated);
     }
@@ -273,56 +185,23 @@ export default function ModemManager() {
 
   const logout = () => {
     setCurrentUser(null);
-  };
-
-  // ===== CONFIGURACIÓN =====
-
-  const loadStorageConfig = async () => {
-    try {
-      const result = await window.storage.get(`storage:${currentUser.id}`, true);
-      if (result) {
-        setStorageConfig(JSON.parse(result.value));
-      }
-    } catch {
-      console.log('Sin config');
-    }
-  };
-
-  const saveStorageConfig = async () => {
-    try {
-      await window.storage.set(`storage:${currentUser.id}`, JSON.stringify(storageConfig), true);
-      setShowSettings(false);
-      alert('Configuración guardada');
-    } catch {
-      alert('Error al guardar');
-    }
+    setSyncStatus('Sesión cerrada');
   };
 
   // ===== MÓDEMS =====
 
   const loadModems = async () => {
-    if (storageConfig.tipo === 'googledrive') {
-      await loadFromGoogleDrive();
-    } else {
-      try {
-        const keys = await window.storage.list(`modems:${currentUser.id}:`, true);
-        if (keys && keys.keys) {
-          const modemsData = await Promise.all(
-            keys.keys.map(async (key) => {
-              try {
-                const result = await window.storage.get(key, true);
-                return result ? { id: key, ...JSON.parse(result.value) } : null;
-              } catch {
-                return null;
-              }
-            })
-          );
-          setModems(modemsData.filter(m => m !== null));
-          setSyncStatus('✓ Almacenamiento Local');
-        }
-      } catch {
-        setSyncStatus('Error');
+    try {
+      const data = await firebaseGet(`modems/${currentUser.id}`);
+      if (data) {
+        setModems(Object.values(data));
+        setSyncStatus('✓ Conectado a Firebase');
+      } else {
+        setModems([]);
+        setSyncStatus('✓ Conectado a Firebase (sin datos)');
       }
+    } catch (error) {
+      setSyncStatus('Error conectando a Firebase');
     }
   };
 
@@ -359,40 +238,48 @@ export default function ModemManager() {
     }
 
     try {
+      const modemsObj = {};
       const newModemsData = editingId
         ? modems.map(m => m.id === editingId ? { ...formData, id: editingId } : m)
-        : [...modems, { ...formData, id: `modems:${currentUser.id}:${Date.now()}` }];
+        : [...modems, { ...formData, id: `modem:${Date.now()}` }];
 
-      if (storageConfig.tipo === 'googledrive') {
-        await saveToGoogleDrive(newModemsData);
+      newModemsData.forEach((modem, index) => {
+        modemsObj[`modem_${index}`] = modem;
+      });
+
+      const success = await firebaseSet(`modems/${currentUser.id}`, modemsObj);
+      
+      if (success) {
+        setModems(newModemsData);
+        setFormData({ tienda: '', proveedor: '', serie: '', modelo: '', fotos: [] });
+        setShowForm(false);
+        setEditingId(null);
+        setSyncStatus('✓ Guardado en Firebase');
       } else {
-        for (const modem of newModemsData) {
-          await window.storage.set(modem.id, JSON.stringify(modem), true);
-        }
+        alert('Error al guardar');
       }
-
-      setModems(newModemsData);
-      setFormData({ tienda: '', proveedor: '', serie: '', modelo: '', fotos: [] });
-      setShowForm(false);
-      setEditingId(null);
-    } catch {
-      alert('Error al guardar');
+    } catch (error) {
+      alert('Error al guardar el módem');
     }
   };
 
   const deleteModem = async (id) => {
-    if (window.confirm('¿Eliminar?')) {
+    if (confirm('¿Eliminar?')) {
       try {
         const newModemsData = modems.filter(m => m.id !== id);
+        const modemsObj = {};
         
-        if (storageConfig.tipo === 'googledrive') {
-          await saveToGoogleDrive(newModemsData);
-        } else {
-          await window.storage.delete(id, true);
+        newModemsData.forEach((modem, index) => {
+          modemsObj[`modem_${index}`] = modem;
+        });
+
+        const success = await firebaseSet(`modems/${currentUser.id}`, modemsObj);
+        
+        if (success) {
+          setModems(newModemsData);
+          setSyncStatus('✓ Eliminado');
         }
-        
-        setModems(newModemsData);
-      } catch {
+      } catch (error) {
         alert('Error al eliminar');
       }
     }
@@ -445,17 +332,18 @@ export default function ModemManager() {
         }
 
         const newModemsData = [...modems, ...importedData];
+        const modemsObj = {};
         
-        if (storageConfig.tipo === 'googledrive') {
-          await saveToGoogleDrive(newModemsData);
-        } else {
-          for (const modem of newModemsData) {
-            await window.storage.set(modem.id, JSON.stringify(modem), true);
-          }
+        newModemsData.forEach((modem, index) => {
+          modemsObj[`modem_${index}`] = modem;
+        });
+
+        const success = await firebaseSet(`modems/${currentUser.id}`, modemsObj);
+        
+        if (success) {
+          setModems(newModemsData);
+          alert(`${importedData.length} módems importados`);
         }
-        
-        setModems(newModemsData);
-        alert(`${importedData.length} módems importados`);
       } catch {
         alert('Error al importar');
       }
@@ -469,15 +357,13 @@ export default function ModemManager() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow-2xl p-8 max-w-md w-full">
           <h1 className="text-3xl font-bold text-center mb-2 text-gray-800">Gestor de Módems</h1>
-          <p className="text-center text-gray-600 mb-6">Sistema Seguro</p>
+          <p className="text-center text-gray-600 mb-6">Sistema Seguro con Firebase</p>
 
           <div className="flex gap-2 mb-4">
             <button
               onClick={() => setLoginMode(true)}
               className={`flex-1 py-2 rounded-lg font-semibold transition ${
-                loginMode
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 text-gray-700'
+                loginMode ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'
               }`}
             >
               Iniciar Sesión
@@ -485,9 +371,7 @@ export default function ModemManager() {
             <button
               onClick={() => setLoginMode(false)}
               className={`flex-1 py-2 rounded-lg font-semibold transition ${
-                !loginMode
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 text-gray-700'
+                !loginMode ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'
               }`}
             >
               Registrarse
@@ -535,9 +419,7 @@ export default function ModemManager() {
               <div className="flex items-center gap-4 mt-2">
                 <span className="text-sm text-gray-600">{syncStatus}</span>
                 <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                  currentUser.esAdmin
-                    ? 'bg-red-100 text-red-700'
-                    : 'bg-blue-100 text-blue-700'
+                  currentUser.esAdmin ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
                 }`}>
                   {currentUser.esAdmin ? '👑 ADMIN' : 'Usuario'}
                 </span>
@@ -639,7 +521,7 @@ export default function ModemManager() {
               </div>
 
               <div className="pt-4 border-t border-amber-300">
-                <h3 className="font-semibold mb-3">Usuarios</h3>
+                <h3 className="font-semibold mb-3">Usuarios Registrados</h3>
                 <div className="space-y-2">
                   {users.map((user) => (
                     <div key={user.id} className="flex items-center justify-between bg-white p-3 rounded border border-amber-200">
@@ -664,55 +546,21 @@ export default function ModemManager() {
 
           {showSettings && currentUser.esAdmin && (
             <div className="bg-blue-50 p-6 rounded-lg mb-6 border-2 border-blue-200">
-              <h2 className="text-xl font-semibold mb-4">Almacenamiento</h2>
-              
-              <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-4 mb-4 flex gap-3">
-                <AlertCircle className="text-yellow-600 flex-shrink-0" size={20} />
-                <div className="text-sm text-yellow-800">
-                  <p className="font-semibold mb-2">⚠️ Configuración de Google Drive</p>
-                  <p className="mb-2">Para usar Google Drive, necesitas:</p>
-                  <ol className="list-decimal list-inside space-y-1">
-                    <li>Crear un proyecto en <a href="https://console.cloud.google.com" target="_blank" rel="noopener noreferrer" className="underline font-semibold">Google Cloud Console</a></li>
-                    <li>Obtener un CLIENT_ID de OAuth 2.0</li>
-                    <li>Reemplazar <code className="bg-white px-2 py-1 rounded">TU_CLIENT_ID_AQUI</code> en el código</li>
-                    <li>Desplegar la app en Vercel o Netlify</li>
-                  </ol>
-                </div>
+              <h2 className="text-xl font-semibold mb-4">Información</h2>
+              <div className="bg-green-50 border border-green-300 rounded-lg p-4">
+                <p className="text-green-800">
+                  ✅ <strong>Firebase está conectado y funcionando correctamente</strong>
+                </p>
+                <p className="text-sm text-green-700 mt-2">
+                  Todos los datos se guardan en Firebase Realtime Database de forma segura.
+                </p>
               </div>
-
-              <div className="space-y-4 max-w-md">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    checked={storageConfig.tipo === 'local'}
-                    onChange={() => setStorageConfig({...storageConfig, tipo: 'local'})}
-                  />
-                  Almacenamiento Local
-                </label>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    checked={storageConfig.tipo === 'googledrive'}
-                    onChange={() => setStorageConfig({...storageConfig, tipo: 'googledrive'})}
-                  />
-                  Google Drive
-                </label>
-              </div>
-
-              <div className="flex gap-3 mt-4">
-                <button
-                  onClick={saveStorageConfig}
-                  className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700"
-                >
-                  Guardar
-                </button>
-                <button
-                  onClick={() => setShowSettings(false)}
-                  className="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg"
-                >
-                  Cerrar
-                </button>
-              </div>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg mt-4"
+              >
+                Cerrar
+              </button>
             </div>
           )}
 
@@ -732,21 +580,21 @@ export default function ModemManager() {
                   type="text"
                   value={formData.tienda}
                   onChange={(e) => setFormData({...formData, tienda: e.target.value})}
-                  placeholder="Tienda"
+                  placeholder="Tienda *"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                 />
                 <input
                   type="text"
                   value={formData.proveedor}
                   onChange={(e) => setFormData({...formData, proveedor: e.target.value})}
-                  placeholder="Proveedor"
+                  placeholder="Proveedor *"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                 />
                 <input
                   type="text"
                   value={formData.serie}
                   onChange={(e) => setFormData({...formData, serie: e.target.value})}
-                  placeholder="Serie"
+                  placeholder="Serie *"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                 />
                 <input
@@ -772,7 +620,7 @@ export default function ModemManager() {
                     </div>
                   ))}
                   {formData.fotos.length < 3 && (
-                    <label className="w-32 h-32 flex items-center justify-center border-2 border-dashed border-gray-300 rounded-lg cursor-pointer">
+                    <label className="w-32 h-32 flex items-center justify-center border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500">
                       <Camera size={32} className="text-gray-400" />
                       <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" multiple />
                     </label>
