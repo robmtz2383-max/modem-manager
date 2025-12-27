@@ -265,7 +265,7 @@ export default function ModemManager() {
   };
 
   const deleteUser = async (userId) => {
-    if (confirm('¿Estás seguro?')) {
+    if (windows.confirm('¿Estás seguro?')) {
       const updated = users.filter(u => u.id !== userId);
       await saveUsers(updated);
     }
@@ -381,7 +381,7 @@ export default function ModemManager() {
   };
 
   const deleteModem = async (id) => {
-    if (confirm('¿Eliminar?')) {
+    if (windows.confirm('¿Eliminar?')) {
       try {
         const newModemsData = modems.filter(m => m.id !== id);
         
