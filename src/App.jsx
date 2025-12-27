@@ -285,14 +285,22 @@ export default function App() {
         <div className="bg-white rounded-lg shadow-2xl p-8 max-w-md w-full">
           <h1 className="text-3xl font-bold text-center mb-2">Gestor v3.0</h1>
           <p className="text-center text-gray-600 mb-6">Firebase</p>
-          <div className="flex gap-2 mb-4">
-            <button onClick={() => setLoginMode(true)} className={`flex-1 py-2 rounded-lg font-semibold ${loginMode ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Iniciar</button>
-            <button onClick={() => setLoginMode(false)} className={`flex-1 py-2 rounded-lg font-semibold ${!loginMode ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Registrarse</button>
-          </div>
-          <input type="text" value={loginData.usuario} onChange={(e) => setLoginData({...loginData, usuario: e.target.value})} placeholder="Usuario" className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-2" />
-          <input type="password" value={loginData.contraseña} onChange={(e) => setLoginData({...loginData, contraseña: e.target.value})} placeholder="Contraseña" className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-3" />
-          <button onClick={loginMode ? handleLogin : handleRegister} className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700">{loginMode ? 'Iniciar' : 'Registrarse'}</button>
-          {users.length === 0 && !loginMode && <p className="text-center text-green-600 text-sm mt-4">✓ Serás ADMIN</p>}
+          {loginMode ? (
+            <div className="space-y-4">
+              <input type="text" value={loginData.usuario} onChange={(e) => setLoginData({...loginData, usuario: e.target.value})} placeholder="Usuario" className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
+              <input type="password" value={loginData.contraseña} onChange={(e) => setLoginData({...loginData, contraseña: e.target.value})} placeholder="Contraseña" className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
+              <button onClick={handleLogin} className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700">Iniciar Sesión</button>
+              <button onClick={() => setLoginMode(false)} className="w-full bg-gray-200 text-gray-700 py-2 rounded-lg font-semibold hover:bg-gray-300">Crear Cuenta</button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <input type="text" value={loginData.usuario} onChange={(e) => setLoginData({...loginData, usuario: e.target.value})} placeholder="Usuario" className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
+              <input type="password" value={loginData.contraseña} onChange={(e) => setLoginData({...loginData, contraseña: e.target.value})} placeholder="Contraseña" className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
+              <button onClick={handleRegister} className="w-full bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700">Registrarse</button>
+              <button onClick={() => setLoginMode(true)} className="w-full bg-gray-200 text-gray-700 py-2 rounded-lg font-semibold hover:bg-gray-300">Volver</button>
+              {users.length === 0 && <p className="text-center text-green-600 text-sm">✓ Serás ADMIN</p>}
+            </div>
+          )}
         </div>
       </div>
     );
