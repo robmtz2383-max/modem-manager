@@ -41,19 +41,22 @@ export default function App() {
   useEffect(() => { if (user) { loadModems(); loadTiendas(); loadProveedores(); loadHistorial(); } }, [user]);
 
   useEffect(() => {
-    if (user) localStorage.setItem('currentUser', JSON.stringify(user));
-    else localStorage.removeItem('currentUser');
+    try {
+      if (user) {
+        sessionStorage.setItem('currentUser', JSON.stringify(user));
+      } else {
+        sessionStorage.removeItem('currentUser');
+      }
+    } catch { }
   }, [user]);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('currentUser');
-    if (savedUser) {
-      try {
+    try {
+      const savedUser = sessionStorage.getItem('currentUser');
+      if (savedUser) {
         setUser(JSON.parse(savedUser));
-      } catch {
-        localStorage.removeItem('currentUser');
       }
-    }
+    } catch { }
   }, []);
 
   const fetch_get = async (path) => {
