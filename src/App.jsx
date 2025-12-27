@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Trash2, Plus, Save, Edit2, X, Upload, Download, Settings, Cloud, LogOut, Users, AlertCircle } from 'lucide-react';
+import { Camera, Trash2, Plus, Save, Edit2, X, Upload, Download, Settings, LogOut, Users } from 'lucide-react';
 
-// Firebase Config
 const FIREBASE_URL = 'https://gestor-modems-default-rtdb.firebaseio.com';
 
 export default function ModemManager() {
@@ -10,13 +9,12 @@ export default function ModemManager() {
   const [loginData, setLoginData] = useState({ usuario: '', contraseña: '' });
   const [showUserForm, setShowUserForm] = useState(false);
   const [newUserData, setNewUserData] = useState({ usuario: '', contraseña: '', esAdmin: false });
-
   const [modems, setModems] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [confirmAction, setConfirmAction] = useState(null);
   const [confirmMessage, setConfirmMessage] = useState('');
+  const [confirmAction, setConfirmAction] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
     tienda: '',
@@ -25,7 +23,6 @@ export default function ModemManager() {
     modelo: '',
     fotos: []
   });
-
   const [syncStatus, setSyncStatus] = useState('Desconectado');
   const [users, setUsers] = useState([]);
 
@@ -39,8 +36,6 @@ export default function ModemManager() {
     }
   }, [currentUser]);
 
-  // ===== FIREBASE =====
-
   const firebaseGet = async (path) => {
     try {
       const response = await fetch(`${FIREBASE_URL}/${path}.json`);
@@ -48,8 +43,7 @@ export default function ModemManager() {
         return await response.json();
       }
       return null;
-    } catch (error) {
-      console.log('Error Firebase GET:', error);
+    } catch {
       return null;
     }
   };
@@ -62,25 +56,10 @@ export default function ModemManager() {
         body: JSON.stringify(data)
       });
       return response.ok;
-    } catch (error) {
-      console.log('Error Firebase SET:', error);
+    } catch {
       return false;
     }
   };
-
-  const firebaseDelete = async (path) => {
-    try {
-      const response = await fetch(`${FIREBASE_URL}/${path}.json`, {
-        method: 'DELETE'
-      });
-      return response.ok;
-    } catch (error) {
-      console.log('Error Firebase DELETE:', error);
-      return false;
-    }
-  };
-
-  // ===== USUARIOS =====
 
   const loadUsers = async () => {
     const data = await firebaseGet('users');
@@ -99,9 +78,9 @@ export default function ModemManager() {
     const success = await firebaseSet('users', usersObj);
     if (success) {
       setUsers(usersList);
-    } else {
-      alert('Error al guardar usuarios');
+      return true;
     }
+    return false;
   };
 
   const handleLogin = () => {
@@ -139,16 +118,18 @@ export default function ModemManager() {
     };
 
     const updatedUsers = [...users, newUser];
-    await saveUsers(updatedUsers);
+    const success = await saveUsers(updatedUsers);
     
-    if (newUser.esAdmin) {
-      setCurrentUser(newUser);
-      setSyncStatus('✓ Primer usuario creado como ADMIN');
-    } else {
-      alert('Usuario registrado. Espera a que un admin lo apruebe.');
+    if (success) {
+      if (newUser.esAdmin) {
+        setCurrentUser(newUser);
+        setSyncStatus('✓ Primer usuario creado como ADMIN');
+      } else {
+        alert('Usuario registrado. Espera a que un admin lo apruebe.');
+      }
+      setLoginData({ usuario: '', contraseña: '' });
+      setLoginMode(true);
     }
-    setLoginData({ usuario: '', contraseña: '' });
-    setLoginMode(true);
   };
 
   const createUserAsAdmin = async () => {
@@ -179,22 +160,22 @@ export default function ModemManager() {
     }
   };
 
-  const deleteUser = async (userId) => {
+  const deleteUserConfirm = (userId) => {
     setConfirmMessage('¿Estás seguro de que deseas eliminar este usuario?');
-    setConfirmAction(() => async () => {
-      const updated = users.filter(u => u.id !== userId);
-      await saveUsers(updated);
-      setShowConfirm(false);
-    });
+    setConfirmAction(() => () => deleteUserAction(userId));
     setShowConfirm(true);
+  };
+
+  const deleteUserAction = async (userId) => {
+    const updated = users.filter(u => u.id !== userId);
+    await saveUsers(updated);
+    setShowConfirm(false);
   };
 
   const logout = () => {
     setCurrentUser(null);
     setSyncStatus('Sesión cerrada');
   };
-
-  // ===== MÓDEMS =====
 
   const loadModems = async () => {
     try {
@@ -206,7 +187,7 @@ export default function ModemManager() {
         setModems([]);
         setSyncStatus('✓ Conectado a Firebase (sin datos)');
       }
-    } catch (error) {
+    } catch {
       setSyncStatus('Error conectando a Firebase');
     }
   };
@@ -261,37 +242,37 @@ export default function ModemManager() {
         setShowForm(false);
         setEditingId(null);
         setSyncStatus('✓ Guardado en Firebase');
-      } else {
-        alert('Error al guardar');
       }
-    } catch (error) {
-      alert('Error al guardar el módem');
+    } catch {
+      alert('Error al guardar');
     }
   };
 
-  const deleteModem = async (id) => {
+  const deleteModemConfirm = (id) => {
     setConfirmMessage('¿Estás seguro de que deseas eliminar este módem?');
-    setConfirmAction(() => async () => {
-      try {
-        const newModemsData = modems.filter(m => m.id !== id);
-        const modemsObj = {};
-        
-        newModemsData.forEach((modem, index) => {
-          modemsObj[`modem_${index}`] = modem;
-        });
-
-        const success = await firebaseSet(`modems/${currentUser.id}`, modemsObj);
-        
-        if (success) {
-          setModems(newModemsData);
-          setSyncStatus('✓ Eliminado');
-        }
-        setShowConfirm(false);
-      } catch (error) {
-        alert('Error al eliminar');
-      }
-    });
+    setConfirmAction(() => () => deleteModemAction(id));
     setShowConfirm(true);
+  };
+
+  const deleteModemAction = async (id) => {
+    try {
+      const newModemsData = modems.filter(m => m.id !== id);
+      const modemsObj = {};
+      
+      newModemsData.forEach((modem, index) => {
+        modemsObj[`modem_${index}`] = modem;
+      });
+
+      const success = await firebaseSet(`modems/${currentUser.id}`, modemsObj);
+      
+      if (success) {
+        setModems(newModemsData);
+        setSyncStatus('✓ Eliminado');
+      }
+      setShowConfirm(false);
+    } catch {
+      alert('Error al eliminar');
+    }
   };
 
   const editModem = (modem) => {
@@ -366,22 +347,18 @@ export default function ModemManager() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow-2xl p-8 max-w-md w-full">
           <h1 className="text-3xl font-bold text-center mb-2 text-gray-800">Gestor de Módems</h1>
-          <p className="text-center text-gray-600 mb-6">Sistema Seguro con Firebase</p>
+          <p className="text-center text-gray-600 mb-6">Firebase + Vercel</p>
 
           <div className="flex gap-2 mb-4">
             <button
               onClick={() => setLoginMode(true)}
-              className={`flex-1 py-2 rounded-lg font-semibold transition ${
-                loginMode ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'
-              }`}
+              className={`flex-1 py-2 rounded-lg font-semibold ${loginMode ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
             >
-              Iniciar Sesión
+              Iniciar
             </button>
             <button
               onClick={() => setLoginMode(false)}
-              className={`flex-1 py-2 rounded-lg font-semibold transition ${
-                !loginMode ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'
-              }`}
+              className={`flex-1 py-2 rounded-lg font-semibold ${!loginMode ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
             >
               Registrarse
             </button>
@@ -393,14 +370,14 @@ export default function ModemManager() {
               value={loginData.usuario}
               onChange={(e) => setLoginData({...loginData, usuario: e.target.value})}
               placeholder="Usuario"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
             />
             <input
               type="password"
               value={loginData.contraseña}
               onChange={(e) => setLoginData({...loginData, contraseña: e.target.value})}
               placeholder="Contraseña"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
             />
             <button
               onClick={loginMode ? handleLogin : handleRegister}
@@ -427,9 +404,7 @@ export default function ModemManager() {
               <h1 className="text-3xl font-bold text-gray-800">Gestor de Módems</h1>
               <div className="flex items-center gap-4 mt-2">
                 <span className="text-sm text-gray-600">{syncStatus}</span>
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                  currentUser.esAdmin ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
-                }`}>
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${currentUser.esAdmin ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
                   {currentUser.esAdmin ? '👑 ADMIN' : 'Usuario'}
                 </span>
               </div>
@@ -540,7 +515,7 @@ export default function ModemManager() {
                       </div>
                       {currentUser.id !== user.id && (
                         <button
-                          onClick={() => deleteUser(user.id)}
+                          onClick={() => deleteUserConfirm(user.id)}
                           className="text-red-600 hover:text-red-700"
                         >
                           <Trash2 size={18} />
@@ -553,16 +528,11 @@ export default function ModemManager() {
             </div>
           )}
 
-          {!showForm && !showSettings && !showUserForm && (
+          {showSettings && currentUser.esAdmin && (
             <div className="bg-blue-50 p-6 rounded-lg mb-6 border-2 border-blue-200">
               <h2 className="text-xl font-semibold mb-4">Información</h2>
               <div className="bg-green-50 border border-green-300 rounded-lg p-4">
-                <p className="text-green-800">
-                  ✅ <strong>Firebase está conectado y funcionando correctamente</strong>
-                </p>
-                <p className="text-sm text-green-700 mt-2">
-                  Todos los datos se guardan en Firebase Realtime Database de forma segura.
-                </p>
+                <p className="text-green-800">✅ Firebase está conectado y funcionando</p>
               </div>
               <button
                 onClick={() => setShowSettings(false)}
@@ -655,6 +625,31 @@ export default function ModemManager() {
             </div>
           )}
 
+          {showConfirm && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+              <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm w-full">
+                <h2 className="text-xl font-semibold text-gray-800 mb-4">Confirmación</h2>
+                <p className="text-gray-600 mb-6">{confirmMessage}</p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      if (confirmAction) confirmAction();
+                    }}
+                    className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
+                  >
+                    Eliminar
+                  </button>
+                  <button
+                    onClick={() => setShowConfirm(false)}
+                    className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {modems.length === 0 ? (
               <div className="col-span-full text-center py-12 text-gray-500">
@@ -688,7 +683,7 @@ export default function ModemManager() {
                       Editar
                     </button>
                     <button
-                      onClick={() => deleteModem(modem.id)}
+                      onClick={() => deleteModemConfirm(modem.id)}
                       className="flex-1 flex items-center justify-center gap-1 bg-red-100 text-red-700 px-3 py-2 rounded hover:bg-red-200 text-sm"
                     >
                       <Trash2 size={16} />
