@@ -40,6 +40,22 @@ export default function App() {
   useEffect(() => { loadUsers(); }, []);
   useEffect(() => { if (user) { loadModems(); loadTiendas(); loadProveedores(); loadHistorial(); } }, [user]);
 
+  useEffect(() => {
+    if (user) localStorage.setItem('currentUser', JSON.stringify(user));
+    else localStorage.removeItem('currentUser');
+  }, [user]);
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem('currentUser');
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch {
+        localStorage.removeItem('currentUser');
+      }
+    }
+  }, []);
+
   const fetch_get = async (path) => {
     try {
       const r = await fetch(`${FIREBASE_URL}/${path}.json`);
