@@ -9,8 +9,7 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
-    "dev": "vite"
+    "build": "react-scripts build"
   },
   "eslintConfig": {
     "extends": ["react-app"]
@@ -23,21 +22,3 @@
     "react-scripts": "5.0.1"
   }
 }
-```
-
-5. **Guarda** (Ctrl+S o Cmd+S)
-
----
-
-## 📝 Paso 2: Crear `.gitignore`
-
-1. **Haz clic derecho** en la carpeta
-2. **"New File"**
-3. Nombre: `.gitignore`
-4. Copia esto:
-```
-node_modules/
-.env
-.DS_Store
-dist/
-build/
