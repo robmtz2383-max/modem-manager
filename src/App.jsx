@@ -14,6 +14,9 @@ export default function ModemManager() {
   const [modems, setModems] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [confirmMessage, setConfirmMessage] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
     tienda: '',
@@ -177,10 +180,13 @@ export default function ModemManager() {
   };
 
   const deleteUser = async (userId) => {
-    if (confirm('¿Estás seguro?')) {
+    setConfirmMessage('¿Estás seguro de que deseas eliminar este usuario?');
+    setConfirmAction(() => async () => {
       const updated = users.filter(u => u.id !== userId);
       await saveUsers(updated);
-    }
+      setShowConfirm(false);
+    });
+    setShowConfirm(true);
   };
 
   const logout = () => {
@@ -264,7 +270,8 @@ export default function ModemManager() {
   };
 
   const deleteModem = async (id) => {
-    if (confirm('¿Eliminar?')) {
+    setConfirmMessage('¿Estás seguro de que deseas eliminar este módem?');
+    setConfirmAction(() => async () => {
       try {
         const newModemsData = modems.filter(m => m.id !== id);
         const modemsObj = {};
@@ -279,10 +286,12 @@ export default function ModemManager() {
           setModems(newModemsData);
           setSyncStatus('✓ Eliminado');
         }
+        setShowConfirm(false);
       } catch (error) {
         alert('Error al eliminar');
       }
-    }
+    });
+    setShowConfirm(true);
   };
 
   const editModem = (modem) => {
@@ -544,7 +553,7 @@ export default function ModemManager() {
             </div>
           )}
 
-          {showSettings && currentUser.esAdmin && (
+          {!showForm && !showSettings && !showUserForm && (
             <div className="bg-blue-50 p-6 rounded-lg mb-6 border-2 border-blue-200">
               <h2 className="text-xl font-semibold mb-4">Información</h2>
               <div className="bg-green-50 border border-green-300 rounded-lg p-4">
