@@ -278,6 +278,19 @@ export default function ModemManager() {
     }
   };
 
+  const deleteUserConfirm = (userId) => {
+    setConfirmMessage('¿Estás seguro de eliminar este usuario?');
+    setConfirmAction(() => async () => {
+      const u = users.find(x => x.id === userId);
+      const success = await saveUsers(users.filter(x => x.id !== userId));
+      if (success) {
+        await addToHistorial('Eliminar usuario', u.usuario);
+        setShowConfirm(false);
+      }
+    });
+    setShowConfirm(true);
+  };
+
   const deleteProveedor = (id) => {
     setConfirmMessage('¿Estás seguro de eliminar este proveedor?');
     setConfirmAction(() => async () => {
