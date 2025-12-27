@@ -37,27 +37,25 @@ export default function App() {
   const [editPId, setEditPId] = useState(null);
   const [status, setStatus] = useState('');
 
-  useEffect(() => { loadUsers(); }, []);
-  useEffect(() => { if (user) { loadModems(); loadTiendas(); loadProveedores(); loadHistorial(); } }, [user]);
-
-  useEffect(() => {
-    try {
-      if (user) {
-        sessionStorage.setItem('currentUser', JSON.stringify(user));
-      } else {
-        sessionStorage.removeItem('currentUser');
-      }
-    } catch { }
-  }, [user]);
-
-  useEffect(() => {
-    try {
-      const savedUser = sessionStorage.getItem('currentUser');
-      if (savedUser) {
-        setUser(JSON.parse(savedUser));
-      }
-    } catch { }
+  useEffect(() => { 
+    loadUsers();
+    checkSession();
   }, []);
+
+  const checkSession = async () => {
+    try {
+      const sessionId = window.location.hash.split('session=')[1];
+      if (sessionId) {
+        const d = await fetch_get(`sessions/${sessionId}`);
+        if (d) {
+          setUser(d);
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+      }
+    } catch { }
+  };
+
+  useEffect(() => { if (user) { loadModems(); loadTiendas(); loadProveedores(); loadHistorial(); } }, [user]);
 
   const fetch_get = async (path) => {
     try {
@@ -137,6 +135,9 @@ export default function App() {
     const u = users.find(x => x.usuario === loginData.usuario && x.contraseña === loginData.contraseña);
     if (u) {
       setUser(u);
+      const sessionId = `session_${Date.now()}`;
+      fetch_set(`sessions/${sessionId}`, u);
+      window.location.hash = `session=${sessionId}`;
       setLoginData({ usuario: '', contraseña: '' });
     } else alert('Datos incorrectos');
   };
