@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Camera, Trash2, Plus, Save, Edit2, X, LogOut, Users, Search, TrendingUp, Clock, Key, Building2, Briefcase, Download } from 'lucide-react';
-
+import jsPDF from 'jspdf';
+import jsQR from 'jsqr';
 const FIREBASE_URL = 'https://gestor-modems-default-rtdb.firebaseio.com';
 
 export default function App() {
