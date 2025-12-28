@@ -346,14 +346,32 @@ export default function App() {
           {showForm && (
             <div className="bg-blue-50 p-6 rounded-lg mb-6 border-2 border-blue-200">
               <h2 className="text-xl font-semibold mb-4">{editId ? 'Editar' : 'Nuevo'} Módem</h2>
-              <select value={formData.tienda} onChange={(e) => setFormData({...formData, tienda: e.target.value})} className="w-full px-4 py-2 border rounded-lg mb-2">
-                <option value="">Selecciona tienda</option>
-                {tiendas.map(t => <option key={t.id} value={t.nombre}>{t.nombre}</option>)}
-              </select>
-              <select value={formData.proveedor} onChange={(e) => setFormData({...formData, proveedor: e.target.value})} className="w-full px-4 py-2 border rounded-lg mb-2">
-                <option value="">Selecciona proveedor</option>
-                {proveedores.map(p => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
-              </select>
+              <div className="relative mb-2">
+                <input 
+                  type="text" 
+                  value={formData.tienda} 
+                  onChange={(e) => setFormData({...formData, tienda: e.target.value})} 
+                  placeholder="Tienda (escribe para buscar)" 
+                  list="tiendas-list"
+                  className="w-full px-4 py-2 border rounded-lg"
+                />
+                <datalist id="tiendas-list">
+                  {tiendas.map(t => <option key={t.id} value={t.nombre} />)}
+                </datalist>
+              </div>
+              <div className="relative mb-2">
+                <input 
+                  type="text" 
+                  value={formData.proveedor} 
+                  onChange={(e) => setFormData({...formData, proveedor: e.target.value})} 
+                  placeholder="Proveedor (escribe para buscar)" 
+                  list="proveedores-list"
+                  className="w-full px-4 py-2 border rounded-lg"
+                />
+                <datalist id="proveedores-list">
+                  {proveedores.map(p => <option key={p.id} value={p.nombre} />)}
+                </datalist>
+              </div>
               <input type="text" value={formData.serie} onChange={(e) => setFormData({...formData, serie: e.target.value})} placeholder="Serie" className="w-full px-4 py-2 border rounded-lg mb-2" />
               <input type="text" value={formData.modelo} onChange={(e) => setFormData({...formData, modelo: e.target.value})} placeholder="Modelo (opcional)" className="w-full px-4 py-2 border rounded-lg mb-3" />
               <input type="file" accept="image/*" multiple onChange={uploadImg} className="w-full mb-3" />
