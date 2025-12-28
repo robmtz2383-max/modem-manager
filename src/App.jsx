@@ -34,6 +34,8 @@ export default function App() {
   const [editTId, setEditTId] = useState(null);
   const [editPId, setEditPId] = useState(null);
   const [status, setStatus] = useState('Cargando...');
+  const [showExportPDF, setShowExportPDF] = useState(false);
+  const [selectedTiendaPDF, setSelectedTiendaPDF] = useState('');
 
   useEffect(() => { loadUsers(); checkSession(); }, []);
   useEffect(() => { if (user) { loadAll(); } }, [user]);
@@ -231,6 +233,110 @@ export default function App() {
     } catch { alert('Error'); }
   };
 
+  const exportPDF = async () => {
+    try {
+      const modemsToExport = selectedTiendaPDF 
+        ? modems.filter(m => m.tienda === selectedTiendaPDF)
+        : modems;
+
+      if (modemsToExport.length === 0) {
+        alert('No hay módems para exportar');
+        return;
+      }
+
+      // Crear HTML para el PDF
+      const fecha = new Date().toLocaleDateString('es-MX');
+      const titulo = selectedTiendaPDF 
+        ? `Módems - ${selectedTiendaPDF}` 
+        : 'Todos los Módems';
+
+      let html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { color: #2563eb; text-align: center; border-bottom: 3px solid #2563eb; padding-bottom: 10px; }
+            .info { text-align: center; color: #666; margin-bottom: 20px; }
+            .modem { 
+              border: 2px solid #e5e7eb; 
+              padding: 15px; 
+              margin-bottom: 20px; 
+              border-radius: 8px;
+              page-break-inside: avoid;
+            }
+            .modem-header { 
+              background: #3b82f6; 
+              color: white; 
+              padding: 10px; 
+              border-radius: 5px;
+              margin-bottom: 10px;
+            }
+            .modem-body { display: flex; gap: 15px; }
+            .modem-info { flex: 1; }
+            .modem-info p { margin: 5px 0; }
+            .modem-info strong { color: #1e40af; }
+            .fotos { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+            .foto { width: 150px; height: 150px; object-fit: cover; border: 2px solid #ddd; border-radius: 5px; }
+            .no-fotos { color: #999; font-style: italic; }
+          </style>
+        </head>
+        <body>
+          <h1>${titulo}</h1>
+          <p class="info">Generado: ${fecha} | Total: ${modemsToExport.length} módems</p>
+      `;
+
+      for (const m of modemsToExport) {
+        html += `
+          <div class="modem">
+            <div class="modem-header">
+              <h2 style="margin: 0;">${m.serie}</h2>
+            </div>
+            <div class="modem-body">
+              <div class="modem-info">
+                <p><strong>Tienda:</strong> ${m.tienda}</p>
+                <p><strong>Proveedor:</strong> ${m.proveedor}</p>
+                <p><strong>Modelo:</strong> ${m.modelo || 'No especificado'}</p>
+              </div>
+            </div>
+        `;
+
+        if (m.fotos && m.fotos.length > 0) {
+          html += '<div class="fotos">';
+          m.fotos.forEach(foto => {
+            html += `<img src="${foto}" class="foto" alt="Foto del módem" />`;
+          });
+          html += '</div>';
+        } else {
+          html += '<p class="no-fotos">Sin fotos</p>';
+        }
+
+        html += '</div>';
+      }
+
+      html += `
+        </body>
+        </html>
+      `;
+
+      // Crear blob y descargar
+      const blob = new Blob([html], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `modems_${selectedTiendaPDF || 'todos'}_${new Date().toISOString().split('T')[0]}.html`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      setShowExportPDF(false);
+      alert('Archivo HTML generado. Ábrelo en tu navegador y usa Ctrl+P o Cmd+P para imprimir a PDF');
+    } catch (err) {
+      console.error(err);
+      alert('Error al generar el archivo');
+    }
+  };
+
   const filtered = modems.filter(m => {
     const s = search.toLowerCase();
     const match = m.tienda.toLowerCase().includes(s) || m.proveedor.toLowerCase().includes(s) || m.serie.toLowerCase().includes(s) || (m.modelo && m.modelo.toLowerCase().includes(s));
@@ -285,7 +391,8 @@ export default function App() {
             {user.esAdmin && <button onClick={() => setShowUsers(true)} className="bg-amber-100 p-4 rounded-lg hover:bg-amber-200"><Users className="mx-auto mb-2" /><p className="text-sm font-semibold">Usuarios</p></button>}
             <button onClick={() => setShowStats(true)} className="bg-green-100 p-4 rounded-lg hover:bg-green-200"><TrendingUp className="mx-auto mb-2" /><p className="text-sm font-semibold">Stats</p></button>
             <button onClick={() => setShowHistorial(true)} className="bg-purple-100 p-4 rounded-lg hover:bg-purple-200"><Clock className="mx-auto mb-2" /><p className="text-sm font-semibold">Historial</p></button>
-            <button onClick={exportData} className="bg-blue-100 p-4 rounded-lg hover:bg-blue-200"><Download className="mx-auto mb-2" /><p className="text-sm font-semibold">Exportar</p></button>
+            <button onClick={() => setShowExportPDF(true)} className="bg-red-100 p-4 rounded-lg hover:bg-red-200"><Download className="mx-auto mb-2" /><p className="text-sm font-semibold">PDF</p></button>
+            <button onClick={exportData} className="bg-blue-100 p-4 rounded-lg hover:bg-blue-200"><Download className="mx-auto mb-2" /><p className="text-sm font-semibold">JSON</p></button>
           </div>
 
           {showProfile && (
@@ -328,6 +435,28 @@ export default function App() {
                 ))}
               </div>
               <button onClick={() => setShowHistorial(false)} className="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg">Cerrar</button>
+            </div>
+          )}
+
+          {showExportPDF && (
+            <div className="bg-red-50 p-6 rounded-lg mb-6 border-2 border-red-200">
+              <h2 className="text-xl font-semibold mb-4">Exportar a PDF</h2>
+              <p className="text-sm text-gray-600 mb-4">Selecciona una tienda específica o exporta todos los módems con sus fotos</p>
+              <select 
+                value={selectedTiendaPDF} 
+                onChange={(e) => setSelectedTiendaPDF(e.target.value)} 
+                className="w-full px-4 py-2 border rounded-lg mb-4"
+              >
+                <option value="">📋 Todos los módems ({modems.length})</option>
+                {tiendas.map(t => {
+                  const count = modems.filter(m => m.tienda === t.nombre).length;
+                  return <option key={t.id} value={t.nombre}>🏪 {t.nombre} ({count} módems)</option>;
+                })}
+              </select>
+              <div className="flex gap-3">
+                <button onClick={exportPDF} className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">Generar PDF</button>
+                <button onClick={() => {setShowExportPDF(false); setSelectedTiendaPDF('');}} className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400">Cancelar</button>
+              </div>
             </div>
           )}
 
