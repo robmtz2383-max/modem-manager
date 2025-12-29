@@ -882,12 +882,17 @@ className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink
               {filtered.length === 0 ? (
                   <EmptyState text="No hay módems registrados" />
               ) : (
-                filtered.map(m => (
-                  key={m.id} 
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filtered.length === 0 ? (
+                  <EmptyState text="No hay módems registrados" />
+                  ) : (
+                  filtered.map(m => (
+                  <ModemCard
+                  key={m.id}
                   modem={m}
                   onEdit={() => editModem(m)}
                   onDelete={() => delModem(m.id)}
-                  />
+                />
                 ))
               )}
             </div>
