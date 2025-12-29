@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Camera, Trash2, Plus, Save, Edit2, X, LogOut, Users, Search, TrendingUp, Clock, Key, Building2, Briefcase, Download, Upload, FileSpreadsheet } from 'lucide-react';
-import jsPDF from 'jspdf';
 import * as XLSX from 'xlsx';
 
 const FIREBASE_URL = 'https://gestor-modems-default-rtdb.firebaseio.com';
@@ -495,107 +494,91 @@ export default function App() {
     reader.readAsBinaryString(file);
     e.target.value = '';
   };
-    try {
-      const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      
-      const tiendaModems = modems.filter(m => m.tienda === tiendaNombre);
-      
-      if (tiendaModems.length === 0) {
-        alert('No hay módems en esta tienda');
-        return;
-      }
-
-      let yPos = 20;
-      
-      pdf.setFontSize(18);
-      pdf.setFont(undefined, 'bold');
-      pdf.text('Reporte de Módems', 105, yPos, { align: 'center' });
-      yPos += 10;
-      
-      pdf.setFontSize(14);
-      pdf.text('Tienda: ' + tiendaNombre, 105, yPos, { align: 'center' });
-      yPos += 5;
-      
-      pdf.setFontSize(10);
-      pdf.setFont(undefined, 'normal');
-      pdf.text('Fecha: ' + new Date().toLocaleDateString('es-MX'), 105, yPos, { align: 'center' });
-      yPos += 15;
-
-      for (let i = 0; i < tiendaModems.length; i++) {
-        const modem = tiendaModems[i];
-        
-        if (yPos > 250) {
-          pdf.addPage();
-          yPos = 20;
-        }
-
-        pdf.setFontSize(12);
-        pdf.setFont(undefined, 'bold');
-        pdf.text('Proveedor: ' + modem.proveedor, 15, yPos);
-        yPos += 7;
-        
-        pdf.setFontSize(10);
-        pdf.setFont(undefined, 'normal');
-        pdf.text('Serie: ' + modem.serie, 15, yPos);
-        yPos += 5;
-        
-        if (modem.modelo) {
-          pdf.text('Modelo: ' + modem.modelo, 15, yPos);
-          yPos += 5;
-        }
-        
-        yPos += 5;
-
-        if (modem.fotos && modem.fotos.length > 0) {
-          const imgWidth = 50;
-          const imgHeight = 50;
-          let xPos = 15;
-          
-          for (let j = 0; j < modem.fotos.length; j++) {
-            if (xPos + imgWidth > 195) {
-              xPos = 15;
-              yPos += imgHeight + 5;
-              
-              if (yPos + imgHeight > 270) {
-                pdf.addPage();
-                yPos = 20;
-              }
-            }
-            
-            try {
-              pdf.addImage(modem.fotos[j], 'JPEG', xPos, yPos, imgWidth, imgHeight);
-              xPos += imgWidth + 5;
-            } catch (e) {
-              console.error('Error al agregar imagen:', e);
-            }
-          }
-          
-          yPos += imgHeight + 10;
-        }
-
-        pdf.setDrawColor(200);
-        pdf.line(15, yPos, 195, yPos);
-        yPos += 10;
-      }
-
-      pdf.setFontSize(8);
-      pdf.setTextColor(128);
-      const totalPages = pdf.internal.getNumberOfPages();
-      for (let i = 1; i <= totalPages; i++) {
-        pdf.setPage(i);
-        pdf.text('Página ' + i + ' de ' + totalPages, 105, 285, { align: 'center' });
-        pdf.text('Total de módems: ' + tiendaModems.length, 105, 290, { align: 'center' });
-      }
-
-      pdf.save('Reporte_' + tiendaNombre.replace(/\s+/g, '_') + '_' + new Date().toISOString().split('T')[0] + '.pdf');
-      addHist('Generar PDF', 'Tienda: ' + tiendaNombre);
-    } catch (error) {
-      console.error('Error al generar PDF:', error);
-      alert('Error al generar PDF. Asegúrate de que jsPDF esté cargado.');
+    const generatePDFByTienda = async (tiendaNombre) => {
+  try {
+    const tiendaModems = modems.filter(m => m.tienda === tiendaNombre);
+    
+    if (tiendaModems.length === 0) {
+      alert('No hay módems en esta tienda');
+      return;
     }
-  };
 
+    const fecha = new Date().toLocaleDateString('es-MX');
+    
+    let html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; }
+          h1 { color: #2563eb; text-align: center; border-bottom: 3px solid #2563eb; padding-bottom: 10px; }
+          .info { text-align: center; color: #666; margin-bottom: 20px; }
+          .modem { 
+            border: 2px solid #e5e7eb; 
+            padding: 15px; 
+            margin-bottom: 20px; 
+            border-radius: 8px;
+            page-break-inside: avoid;
+          }
+          .modem-header { 
+            background: #3b82f6; 
+            color: white; 
+            padding: 10px; 
+            border-radius: 5px;
+            margin-bottom: 10px;
+          }
+          .modem-info p { margin: 5px 0; }
+          .modem-info strong { color: #1e40af; }
+          .fotos { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+          .foto { width: 150px; height: 150px; object-fit: cover; border: 2px solid #ddd; border-radius: 5px; }
+        </style>
+      </head>
+      <body>
+        <h1>Módems - ${tiendaNombre}</h1>
+        <p class="info">Generado: ${fecha} | Total: ${tiendaModems.length} módems</p>
+    `;
+
+    for (const m of tiendaModems) {
+      html += `
+        <div class="modem">
+          <div class="modem-header">
+            <h2 style="margin: 0;">${m.serie}</h2>
+          </div>
+          <div class="modem-info">
+            <p><strong>Proveedor:</strong> ${m.proveedor}</p>
+            <p><strong>Modelo:</strong> ${m.modelo || 'No especificado'}</p>
+          </div>
+      `;
+
+      if (m.fotos && m.fotos.length > 0) {
+        html += '<div class="fotos">';
+        m.fotos.forEach(foto => {
+          html += `<img src="${foto}" class="foto" alt="Foto" />`;
+        });
+        html += '</div>';
+      }
+
+      html += '</div>';
+    }
+
+    html += '</body></html>';
+
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Reporte_${tiendaNombre.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    alert('Archivo generado. Ábrelo y usa Ctrl+P para imprimir a PDF');
+    addHist('Generar PDF', 'Tienda: ' + tiendaNombre);
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Error al generar archivo');
+  }
+};
   const filtered = modems.filter(m => {
     const s = search.toLowerCase();
     const match = m.tienda.toLowerCase().includes(s) || m.proveedor.toLowerCase().includes(s) || m.serie.toLowerCase().includes(s);
