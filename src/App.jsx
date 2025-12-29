@@ -8,6 +8,8 @@ export default function App() {
   const [loginMode, setLoginMode] = useState(true);
   const [loginData, setLoginData] = useState({ usuario: '', contraseña: '' });
   const [showScanner, setShowScanner] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
+  const [stream, setStream] = useState(null);
   const [users, setUsers] = useState([]);
   const [modems, setModems] = useState([]);
   const [tiendas, setTiendas] = useState([]);
@@ -165,20 +167,94 @@ export default function App() {
   };
 
   const startScanner = () => {
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(stream => {
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(videoStream => {
+      setStream(videoStream);
       setShowScanner(true);
-      const video = document.getElementById('scanner-video');
-      if (video) {
-        video.srcObject = stream;
-        video.play();
-        setTimeout(() => {
-          stream.getTracks().forEach(t => t.stop());
-          setShowScanner(false);
-        }, 2000);
-      }
+      setTimeout(() => {
+        const video = document.getElementById('scanner-video');
+        if (video) {
+          video.srcObject = videoStream;
+          video.play();
+          scanBarcode(video);
+        }
+      }, 100);
     }).catch(() => {
       alert('Permiso de cámara denegado');
     });
+  };
+
+  const scanBarcode = (video) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    const scan = () => {
+      if (!showScanner) return;
+      
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height);
+      
+      if (code) {
+        setFormData(prev => ({ ...prev, serie: code.data }));
+        stopScanner();
+        alert('Código escaneado: ' + code.data);
+      } else {
+        requestAnimationFrame(scan);
+      }
+    };
+    
+    scan();
+  };
+
+  const stopScanner = () => {
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+      setStream(null);
+    }
+    setShowScanner(false);
+  };
+
+  const startCamera = () => {
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(videoStream => {
+      setStream(videoStream);
+      setShowCamera(true);
+      setTimeout(() => {
+        const video = document.getElementById('camera-video');
+        if (video) {
+          video.srcObject = videoStream;
+          video.play();
+        }
+      }, 100);
+    }).catch(() => {
+      alert('Permiso de cámara denegado');
+    });
+  };
+
+  const capturePhoto = () => {
+    const video = document.getElementById('camera-video');
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const photoData = canvas.toDataURL('image/jpeg', 0.8);
+    
+    if (formData.fotos.length < 3) {
+      setFormData(prev => ({ ...prev, fotos: [...prev.fotos, photoData] }));
+    } else {
+      alert('Máximo 3 fotos');
+    }
+  };
+
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+      setStream(null);
+    }
+    setShowCamera(false);
   };
 
   const updatePass = async () => {
@@ -304,6 +380,108 @@ export default function App() {
     } catch { alert('Error'); }
   };
 
+  const generatePDFByTienda = async (tiendaNombre) => {
+    try {
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      
+      const tiendaModems = modems.filter(m => m.tienda === tiendaNombre);
+      
+      if (tiendaModems.length === 0) {
+        alert('No hay módems en esta tienda');
+        return;
+      }
+
+      let yPos = 20;
+      
+      pdf.setFontSize(18);
+      pdf.setFont(undefined, 'bold');
+      pdf.text('Reporte de Módems', 105, yPos, { align: 'center' });
+      yPos += 10;
+      
+      pdf.setFontSize(14);
+      pdf.text('Tienda: ' + tiendaNombre, 105, yPos, { align: 'center' });
+      yPos += 5;
+      
+      pdf.setFontSize(10);
+      pdf.setFont(undefined, 'normal');
+      pdf.text('Fecha: ' + new Date().toLocaleDateString('es-MX'), 105, yPos, { align: 'center' });
+      yPos += 15;
+
+      for (let i = 0; i < tiendaModems.length; i++) {
+        const modem = tiendaModems[i];
+        
+        if (yPos > 250) {
+          pdf.addPage();
+          yPos = 20;
+        }
+
+        pdf.setFontSize(12);
+        pdf.setFont(undefined, 'bold');
+        pdf.text('Proveedor: ' + modem.proveedor, 15, yPos);
+        yPos += 7;
+        
+        pdf.setFontSize(10);
+        pdf.setFont(undefined, 'normal');
+        pdf.text('Serie: ' + modem.serie, 15, yPos);
+        yPos += 5;
+        
+        if (modem.modelo) {
+          pdf.text('Modelo: ' + modem.modelo, 15, yPos);
+          yPos += 5;
+        }
+        
+        yPos += 5;
+
+        if (modem.fotos && modem.fotos.length > 0) {
+          const imgWidth = 50;
+          const imgHeight = 50;
+          let xPos = 15;
+          
+          for (let j = 0; j < modem.fotos.length; j++) {
+            if (xPos + imgWidth > 195) {
+              xPos = 15;
+              yPos += imgHeight + 5;
+              
+              if (yPos + imgHeight > 270) {
+                pdf.addPage();
+                yPos = 20;
+              }
+            }
+            
+            try {
+              pdf.addImage(modem.fotos[j], 'JPEG', xPos, yPos, imgWidth, imgHeight);
+              xPos += imgWidth + 5;
+            } catch (e) {
+              console.error('Error al agregar imagen:', e);
+            }
+          }
+          
+          yPos += imgHeight + 10;
+        }
+
+        pdf.setDrawColor(200);
+        pdf.line(15, yPos, 195, yPos);
+        yPos += 10;
+      }
+
+      pdf.setFontSize(8);
+      pdf.setTextColor(128);
+      const totalPages = pdf.internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        pdf.setPage(i);
+        pdf.text('Página ' + i + ' de ' + totalPages, 105, 285, { align: 'center' });
+        pdf.text('Total de módems: ' + tiendaModems.length, 105, 290, { align: 'center' });
+      }
+
+      pdf.save('Reporte_' + tiendaNombre.replace(/\s+/g, '_') + '_' + new Date().toISOString().split('T')[0] + '.pdf');
+      addHist('Generar PDF', 'Tienda: ' + tiendaNombre);
+    } catch (error) {
+      console.error('Error al generar PDF:', error);
+      alert('Error al generar PDF. Asegúrate de que jsPDF esté cargado.');
+    }
+  };
+
   const filtered = modems.filter(m => {
     const s = search.toLowerCase();
     const match = m.tienda.toLowerCase().includes(s) || m.proveedor.toLowerCase().includes(s) || m.serie.toLowerCase().includes(s);
@@ -315,24 +493,29 @@ export default function App() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-2xl p-8 max-w-md w-full">
-          <h1 className="text-3xl font-bold text-center mb-2">Gestor v3.0</h1>
-          <p className="text-center text-gray-600 mb-6">Firebase</p>
+      <div className="min-h-screen bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 flex items-center justify-center p-4">
+        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8 max-w-md w-full border-4 border-white">
+          <div className="text-center mb-6">
+            <div className="inline-block p-4 bg-gradient-to-r from-purple-600 to-pink-500 rounded-full mb-4">
+              <Building2 size={48} className="text-white" />
+            </div>
+            <h1 className="text-4xl font-extrabold bg-gradient-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent mb-2">Gestor Módems</h1>
+            <p className="text-gray-600 font-medium">v3.0 Profesional</p>
+          </div>
           {loginMode ? (
             <div className="space-y-4">
-              <input type="text" value={loginData.usuario} onChange={(e) => setLoginData({...loginData, usuario: e.target.value})} placeholder="Usuario" className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
-              <input type="password" value={loginData.contraseña} onChange={(e) => setLoginData({...loginData, contraseña: e.target.value})} placeholder="Contraseña" className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
-              <button onClick={handleLogin} className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700">Iniciar Sesión</button>
-              <button onClick={() => setLoginMode(false)} className="w-full bg-gray-200 text-gray-700 py-2 rounded-lg font-semibold hover:bg-gray-300">Crear Cuenta</button>
+              <input type="text" value={loginData.usuario} onChange={(e) => setLoginData({...loginData, usuario: e.target.value})} placeholder="Usuario" className="w-full px-4 py-3 border-2 border-purple-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 outline-none transition-all" />
+              <input type="password" value={loginData.contraseña} onChange={(e) => setLoginData({...loginData, contraseña: e.target.value})} placeholder="Contraseña" className="w-full px-4 py-3 border-2 border-purple-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 outline-none transition-all" />
+              <button onClick={handleLogin} className="w-full bg-gradient-to-r from-purple-600 to-pink-500 text-white py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all">Iniciar Sesión</button>
+              <button onClick={() => setLoginMode(false)} className="w-full bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:from-gray-200 hover:to-gray-300 transition-all">Crear Cuenta</button>
             </div>
           ) : (
             <div className="space-y-4">
-              <input type="text" value={loginData.usuario} onChange={(e) => setLoginData({...loginData, usuario: e.target.value})} placeholder="Usuario" className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
-              <input type="password" value={loginData.contraseña} onChange={(e) => setLoginData({...loginData, contraseña: e.target.value})} placeholder="Contraseña" className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
-              <button onClick={handleRegister} className="w-full bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700">Registrarse</button>
-              <button onClick={() => setLoginMode(true)} className="w-full bg-gray-200 text-gray-700 py-2 rounded-lg font-semibold hover:bg-gray-300">Volver</button>
-              {users.length === 0 && <p className="text-center text-green-600 text-sm">✓ Serás ADMIN</p>}
+              <input type="text" value={loginData.usuario} onChange={(e) => setLoginData({...loginData, usuario: e.target.value})} placeholder="Usuario" className="w-full px-4 py-3 border-2 border-green-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-100 outline-none transition-all" />
+              <input type="password" value={loginData.contraseña} onChange={(e) => setLoginData({...loginData, contraseña: e.target.value})} placeholder="Contraseña" className="w-full px-4 py-3 border-2 border-green-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-100 outline-none transition-all" />
+              <button onClick={handleRegister} className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all">Registrarse</button>
+              <button onClick={() => setLoginMode(true)} className="w-full bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:from-gray-200 hover:to-gray-300 transition-all">Volver</button>
+              {users.length === 0 && <p className="text-center text-green-600 font-bold text-sm bg-green-50 py-2 rounded-lg">✓ Serás ADMINISTRADOR</p>}
             </div>
           )}
         </div>
@@ -341,17 +524,17 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 p-4">
       <div className="max-w-7xl mx-auto">
-        <div className="bg-white rounded-lg shadow-lg p-6">
+        <div className="bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl p-6 border-4 border-white">
           <div className="flex justify-between items-start mb-6">
             <div>
-              <h1 className="text-3xl font-bold">Gestor de Módems v3.0</h1>
-              <p className="text-sm text-gray-600 mt-1">{status}</p>
+              <h1 className="text-4xl font-extrabold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 bg-clip-text text-transparent">Gestor de Módems</h1>
+              <p className="text-sm text-gray-600 mt-2 font-semibold">{status}</p>
             </div>
-            <div className="flex gap-2">
-              <button onClick={() => setShowProfile(true)} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg"><Key size={20} /></button>
-              <button onClick={logout} className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg"><LogOut size={20} /></button>
+            <div className="flex gap-3">
+              <button onClick={() => setShowProfile(true)} className="flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-5 py-3 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"><Key size={20} /></button>
+              <button onClick={logout} className="flex items-center gap-2 bg-gradient-to-r from-red-500 to-pink-500 text-white px-5 py-3 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"><LogOut size={20} /></button>
             </div>
           </div>
 
@@ -381,9 +564,10 @@ export default function App() {
               </div>
               <div className="space-y-2 max-h-64 overflow-y-auto mb-4">
                 {tiendas.map(t => (
-                  <div key={t.id} className="flex justify-between bg-white p-3 rounded border border-orange-200">
+                  <div key={t.id} className="flex justify-between items-center bg-white p-3 rounded border border-orange-200">
                     <div><p className="font-semibold">{t.nombre}</p><p className="text-sm text-gray-600">{t.asesor}</p></div>
                     <div className="flex gap-2">
+                      <button onClick={() => generatePDFByTienda(t.nombre)} className="text-green-600 hover:text-green-800" title="Generar PDF"><Download size={18} /></button>
                       <button onClick={() => {setNewTienda(t); setEditTId(t.id);}} className="text-blue-600"><Edit2 size={18} /></button>
                       <button onClick={() => delTienda(t.id)} className="text-red-600"><Trash2 size={18} /></button>
                     </div>
@@ -490,15 +674,15 @@ export default function App() {
               <div className="flex gap-2 mb-6 flex-wrap">
                 {user.esAdmin && (
                   <>
-                    <button onClick={() => setShowTiendas(true)} className="flex items-center gap-2 bg-orange-600 text-white px-4 py-2 rounded-lg"><Building2 size={20} />Tiendas</button>
-                    <button onClick={() => setShowProveedores(true)} className="flex items-center gap-2 bg-cyan-600 text-white px-4 py-2 rounded-lg"><Briefcase size={20} />Proveedores</button>
-                    <button onClick={() => setShowUsers(true)} className="flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-lg"><Users size={20} />Usuarios</button>
+                    <button onClick={() => setShowTiendas(true)} className="flex items-center gap-2 bg-gradient-to-r from-orange-500 to-red-500 text-white px-5 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"><Building2 size={20} />Tiendas</button>
+                    <button onClick={() => setShowProveedores(true)} className="flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-5 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"><Briefcase size={20} />Proveedores</button>
+                    <button onClick={() => setShowUsers(true)} className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white px-5 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"><Users size={20} />Usuarios</button>
                   </>
                 )}
-                <button onClick={() => setShowStats(true)} className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg"><TrendingUp size={20} />Estadísticas</button>
-                <button onClick={() => setShowHistorial(true)} className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg"><Clock size={20} />Historial</button>
-                <button onClick={exportData} className="flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg"><Download size={20} /></button>
-                <button onClick={() => setShowForm(true)} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg"><Plus size={20} />Nuevo</button>
+                <button onClick={() => setShowStats(true)} className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-5 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"><TrendingUp size={20} />Estadísticas</button>
+                <button onClick={() => setShowHistorial(true)} className="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-5 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"><Clock size={20} />Historial</button>
+                <button onClick={exportData} className="flex items-center gap-2 bg-gradient-to-r from-teal-500 to-cyan-500 text-white px-5 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"><Download size={20} /></button>
+                <button onClick={() => setShowForm(true)} className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-5 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"><Plus size={20} />Nuevo</button>
               </div>
 
               <div className="mb-6 flex gap-4 flex-wrap">
@@ -519,44 +703,54 @@ export default function App() {
           )}
 
           {showForm && (
-            <div className="bg-gray-50 p-6 rounded-lg mb-6">
-              <h2 className="text-xl font-semibold mb-4">{editId ? 'Editar' : 'Nuevo'} Módem</h2>
-              <select value={formData.tienda} onChange={(e) => setFormData({...formData, tienda: e.target.value})} className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-2">
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-2xl mb-6 border-2 border-blue-200 shadow-xl">
+              <h2 className="text-2xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{editId ? 'Editar' : 'Nuevo'} Módem</h2>
+              <select value={formData.tienda} onChange={(e) => setFormData({...formData, tienda: e.target.value})} className="w-full px-4 py-3 border-2 border-blue-200 rounded-xl mb-3 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all">
                 <option value="">Seleccionar Tienda</option>
                 {tiendasList.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
-              <select value={formData.proveedor} onChange={(e) => setFormData({...formData, proveedor: e.target.value})} className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-2">
+              <select value={formData.proveedor} onChange={(e) => setFormData({...formData, proveedor: e.target.value})} className="w-full px-4 py-3 border-2 border-blue-200 rounded-xl mb-3 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all">
                 <option value="">Seleccionar Proveedor</option>
                 {proveedoresList.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
-              <div className="flex gap-2 mb-2">
-                <input type="text" value={formData.serie} onChange={(e) => setFormData({...formData, serie: e.target.value})} placeholder="Serie *" className="flex-1 px-4 py-2 border border-gray-300 rounded-lg" />
-                <button onClick={startScanner} className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700">📱 Escanear</button>
-              </div>
-              {showScanner && (
-                <div className="mb-4 p-4 bg-gray-800 rounded-lg">
-                  <video id="scanner-video" className="w-full h-48 bg-black rounded-lg" />
-                  <button onClick={() => setShowScanner(false)} className="w-full mt-2 bg-red-600 text-white px-4 py-2 rounded-lg">Cerrar Cámara</button>
+              <input type="text" value={formData.serie} onChange={(e) => setFormData({...formData, serie: e.target.value})} placeholder="Número de Serie *" className="w-full px-4 py-3 border-2 border-blue-200 rounded-xl mb-3 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all" />
+              <input type="text" value={formData.modelo} onChange={(e) => setFormData({...formData, modelo: e.target.value})} placeholder="Modelo" className="w-full px-4 py-3 border-2 border-blue-200 rounded-xl mb-4 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all" />
+              
+              <h3 className="font-bold mb-3 text-lg">Fotos ({formData.fotos.length}/3)</h3>
+              {showCamera && (
+                <div className="mb-4 p-4 bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl shadow-xl">
+                  <video id="camera-video" className="w-full h-64 bg-black rounded-xl mb-3" />
+                  <div className="flex gap-3">
+                    <button onClick={capturePhoto} className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-3 rounded-xl font-bold shadow-lg">📸 Capturar</button>
+                    <button onClick={stopCamera} className="flex-1 bg-gradient-to-r from-red-500 to-pink-500 text-white px-4 py-3 rounded-xl font-bold shadow-lg">Cerrar</button>
+                  </div>
                 </div>
               )}
-              <input type="text" value={formData.modelo} onChange={(e) => setFormData({...formData, modelo: e.target.value})} placeholder="Modelo" className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4" />
+              
               <div className="mb-4 flex flex-wrap gap-4">
                 {formData.fotos.map((f, i) => (
-                  <div key={i} className="relative">
-                    <img src={f} alt="foto" className="w-32 h-32 object-cover rounded border-2 border-gray-300" />
-                    <button onClick={() => removeImg(i)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"><X size={16} /></button>
+                  <div key={i} className="relative group">
+                    <img src={f} alt="foto" className="w-32 h-32 object-cover rounded-xl border-4 border-blue-200 shadow-lg group-hover:scale-105 transition-transform" />
+                    <button onClick={() => removeImg(i)} className="absolute -top-2 -right-2 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-full p-2 shadow-lg hover:scale-110 transition-transform"><X size={16} /></button>
                   </div>
                 ))}
                 {formData.fotos.length < 3 && (
-                  <label className="w-32 h-32 flex items-center justify-center border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500">
-                    <Camera size={32} className="text-gray-400" />
-                    <input type="file" accept="image/*" onChange={uploadImg} className="hidden" multiple />
-                  </label>
+                  <>
+                    <button onClick={startCamera} className="w-32 h-32 flex flex-col items-center justify-center border-4 border-dashed border-blue-400 rounded-xl cursor-pointer hover:border-blue-600 bg-gradient-to-br from-blue-50 to-indigo-50 hover:scale-105 transition-all shadow-lg">
+                      <Camera size={32} className="text-blue-500 mb-2" />
+                      <span className="text-xs text-blue-600 font-bold">Tomar foto</span>
+                    </button>
+                    <label className="w-32 h-32 flex flex-col items-center justify-center border-4 border-dashed border-purple-400 rounded-xl cursor-pointer hover:border-purple-600 bg-gradient-to-br from-purple-50 to-pink-50 hover:scale-105 transition-all shadow-lg">
+                      <Plus size={32} className="text-purple-500 mb-2" />
+                      <span className="text-xs text-purple-600 font-bold">Subir archivo</span>
+                      <input type="file" accept="image/*" onChange={uploadImg} className="hidden" multiple />
+                    </label>
+                  </>
                 )}
               </div>
               <div className="flex gap-3">
-                <button onClick={addModem} className="flex items-center gap-2 bg-green-600 text-white px-6 py-2 rounded-lg"><Save size={20} />Guardar</button>
-                <button onClick={() => {setShowForm(false); setEditId(null); setFormData({tienda: '', proveedor: '', serie: '', modelo: '', fotos: []});}} className="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg">Cancelar</button>
+                <button onClick={addModem} className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"><Save size={20} />Guardar</button>
+                <button onClick={() => {setShowForm(false); setEditId(null); setFormData({tienda: '', proveedor: '', serie: '', modelo: '', fotos: []});}} className="bg-gradient-to-r from-gray-300 to-gray-400 text-gray-700 px-6 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all">Cancelar</button>
               </div>
             </div>
           )}
@@ -570,19 +764,21 @@ export default function App() {
                 </div>
               ) : (
                 filtered.map(m => (
-                  <div key={m.id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md">
-                    <h3 className="text-lg font-semibold text-blue-700 mb-1">{m.tienda}</h3>
-                    <h4 className="font-semibold text-gray-800 mb-1">{m.proveedor}</h4>
-                    <p className="text-sm text-gray-600 mb-1"><span className="font-medium">Serie:</span> {m.serie}</p>
-                    {m.modelo && <p className="text-sm text-gray-600 mb-2"><span className="font-medium">Modelo:</span> {m.modelo}</p>}
+                  <div key={m.id} className="bg-gradient-to-br from-white to-blue-50 border-4 border-blue-200 rounded-2xl p-5 shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all">
+                    <h3 className="text-xl font-extrabold text-blue-700 mb-2">{m.tienda}</h3>
+                    <h4 className="font-bold text-gray-800 mb-2 text-lg">{m.proveedor}</h4>
+                    <div className="bg-white rounded-lg p-3 mb-3 border-2 border-blue-100">
+                      <p className="text-sm text-gray-700 mb-1"><span className="font-bold text-blue-600">Serie:</span> {m.serie}</p>
+                      {m.modelo && <p className="text-sm text-gray-700"><span className="font-bold text-blue-600">Modelo:</span> {m.modelo}</p>}
+                    </div>
                     {m.fotos && m.fotos.length > 0 && (
-                      <div className="grid grid-cols-3 gap-2 mb-3">
-                        {m.fotos.map((f, i) => <img key={i} src={f} alt="foto" className="w-full h-20 object-cover rounded border border-gray-200" />)}
+                      <div className="grid grid-cols-3 gap-2 mb-4">
+                        {m.fotos.map((f, i) => <img key={i} src={f} alt="foto" className="w-full h-24 object-cover rounded-lg border-2 border-blue-200 shadow-md hover:scale-105 transition-transform" />)}
                       </div>
                     )}
                     <div className="flex gap-2">
-                      <button onClick={() => editModem(m)} className="flex-1 flex items-center justify-center gap-1 bg-blue-100 text-blue-700 px-3 py-2 rounded hover:bg-blue-200 text-sm"><Edit2 size={16} />Editar</button>
-                      <button onClick={() => delModem(m.id)} className="flex-1 flex items-center justify-center gap-1 bg-red-100 text-red-700 px-3 py-2 rounded hover:bg-red-200 text-sm"><Trash2 size={16} />Eliminar</button>
+                      <button onClick={() => editModem(m)} className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-3 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"><Edit2 size={16} />Editar</button>
+                      <button onClick={() => delModem(m.id)} className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-red-500 to-pink-500 text-white px-3 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"><Trash2 size={16} />Eliminar</button>
                     </div>
                   </div>
                 ))
