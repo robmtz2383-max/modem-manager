@@ -623,7 +623,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen p-4">
+    <div className="min-h-screen bg-slate-100 p-6">
       <div className="max-w-7xl mx-auto">
         <div className="app-container">
           <div className="flex justify-between items-start mb-6">
