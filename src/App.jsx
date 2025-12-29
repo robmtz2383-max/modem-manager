@@ -3,11 +3,13 @@ import { Camera, Trash2, Plus, Save, Edit2, X, LogOut, Users, Search, TrendingUp
 import * as XLSX from 'xlsx';
 import EmptyState from './components/EmptyState';
 import ModemCard from './components/ModemCard';
-import Layout from "./components/Layout";
+import Layout from './components/Layout';
+
 
 const FIREBASE_URL = 'https://gestor-modems-default-rtdb.firebaseio.com';
 
 export default function App() {
+  
   const [user, setUser] = useState(null);
   const [loginMode, setLoginMode] = useState(true);
   const [loginData, setLoginData] = useState({ usuario: '', contraseña: '' });
@@ -624,6 +626,7 @@ export default function App() {
   }
 
   return (
+    <Layout>
     <div className="min-h-screen bg-slate-100 p-6">
       <div className="max-w-7xl mx-auto">
         <div className="app-container">
@@ -637,7 +640,7 @@ export default function App() {
               <button onClick={logout} className="flex items-center gap-2 bg-gradient-to-r from-red-500 to-pink-500 text-white px-5 py-3 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"><LogOut size={20} /></button>
             </div>
           </div>
-
+    
           {showProfile && (
             <div className="bg-indigo-50 p-6 rounded-lg mb-6 border-2 border-indigo-200">
               <h2 className="text-xl font-semibold mb-4">Perfil</h2>
@@ -896,5 +899,6 @@ export default function App() {
         </div>
       </div>
     </div>
+    </Layout>
   );
 }
