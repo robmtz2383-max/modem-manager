@@ -623,7 +623,7 @@ export default function App() {
   }
 
   return (
-    <div <div className="min-h-screen p-4">
+    <div className="min-h-screen p-4">
 className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 p-4">
       <div className="max-w-7xl mx-auto">
         <div className="app-container">
