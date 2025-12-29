@@ -8,13 +8,6 @@ import Layout from "./components/Layout";
 const FIREBASE_URL = 'https://gestor-modems-default-rtdb.firebaseio.com';
 
 export default function App() {
-  return (
-    <Layout>
-      {
-
-
-
-export default function App() {
   const [user, setUser] = useState(null);
   const [loginMode, setLoginMode] = useState(true);
   const [loginData, setLoginData] = useState({ usuario: '', contraseña: '' });
@@ -514,7 +507,7 @@ export default function App() {
     }
 
     const fecha = new Date().toLocaleDateString('es-MX');
-    
+  
     let html = `
       <!DOCTYPE html>
       <html>
@@ -903,8 +896,5 @@ export default function App() {
         </div>
       </div>
     </div>
-  );
-}}
-    </Layout>
   );
 }
