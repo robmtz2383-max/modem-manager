@@ -1,3 +1,6 @@
+// App.jsx
+console.log("deploy nuevo");
+
 import React, { useState, useEffect } from 'react';
 import { Camera, Trash2, Plus, Save, Edit2, X, LogOut, Users, Search, TrendingUp, Clock, Key, Building2, Briefcase, Download, Upload, FileSpreadsheet } from 'lucide-react';
 import * as XLSX from 'xlsx';
