@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Camera, Trash2, Plus, Save, Edit2, X, LogOut, Users, Search, TrendingUp, Clock, Key, Building2, Briefcase, Download, Upload, FileSpreadsheet } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import EmptyState from './components/EmptyState';
+import ModemCard from './components/ModemCard';
 
 const FIREBASE_URL = 'https://gestor-modems-default-rtdb.firebaseio.com';
 
@@ -578,7 +580,7 @@ export default function App() {
     console.error('Error:', error);
     alert('Error al generar archivo');
   }
-};
+}
   const filtered = modems.filter(m => {
     const s = search.toLowerCase();
     const match = m.tienda.toLowerCase().includes(s) || m.proveedor.toLowerCase().includes(s) || m.serie.toLowerCase().includes(s);
@@ -621,9 +623,10 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 p-4">
+    <div <div className="min-h-screen p-4">
+className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 p-4">
       <div className="max-w-7xl mx-auto">
-        <div className="bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl p-6 border-4 border-white">
+        <div className="app-container">
           <div className="flex justify-between items-start mb-6">
             <div>
               <h1 className="text-4xl font-extrabold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 bg-clip-text text-transparent">Gestor de Módems</h1>
@@ -877,29 +880,14 @@ export default function App() {
           {!showForm && !showStats && !showHistorial && !showTiendas && !showProveedores && !showProfile && !showUsers && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filtered.length === 0 ? (
-                <div className="col-span-full text-center py-12 text-gray-500">
-                  <Camera size={48} className="mx-auto mb-4 opacity-50" />
-                  <p>No hay módems</p>
-                </div>
+                  <EmptyState text="No hay módems registrados" />
               ) : (
                 filtered.map(m => (
-                  <div key={m.id} className="bg-gradient-to-br from-white to-blue-50 border-4 border-blue-200 rounded-2xl p-5 shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all">
-                    <h3 className="text-xl font-extrabold text-blue-700 mb-2">{m.tienda}</h3>
-                    <h4 className="font-bold text-gray-800 mb-2 text-lg">{m.proveedor}</h4>
-                    <div className="bg-white rounded-lg p-3 mb-3 border-2 border-blue-100">
-                      <p className="text-sm text-gray-700 mb-1"><span className="font-bold text-blue-600">Serie:</span> {m.serie}</p>
-                      {m.modelo && <p className="text-sm text-gray-700"><span className="font-bold text-blue-600">Modelo:</span> {m.modelo}</p>}
-                    </div>
-                    {m.fotos && m.fotos.length > 0 && (
-                      <div className="grid grid-cols-3 gap-2 mb-4">
-                        {m.fotos.map((f, i) => <img key={i} src={f} alt="foto" className="w-full h-24 object-cover rounded-lg border-2 border-blue-200 shadow-md hover:scale-105 transition-transform" />)}
-                      </div>
-                    )}
-                    <div className="flex gap-2">
-                      <button onClick={() => editModem(m)} className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-3 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"><Edit2 size={16} />Editar</button>
-                      <button onClick={() => delModem(m.id)} className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-red-500 to-pink-500 text-white px-3 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"><Trash2 size={16} />Eliminar</button>
-                    </div>
-                  </div>
+                  key={m.id} 
+                  modem={m}
+                  onEdit={() => editModem(m)}
+                  onDelete={() => delModem(m.id)}
+                  />
                 ))
               )}
             </div>
