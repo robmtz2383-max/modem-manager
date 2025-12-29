@@ -1,11 +1,13 @@
-import ThemeToggle from "./ThemeToggle";
-
 export default function Header() {
   return (
-    <header className="h-14 flex items-center justify-between px-6 border-b
-  bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+    <header className="
+      h-14 flex items-center justify-between
+      px-4 md:px-6
+      border-b
+      bg-white dark:bg-slate-900
+      dark:border-slate-700">
 
-  <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">
+      <h1 className="text-lg md:text-xl font-semibold">
         Modem Manager
       </h1>
 

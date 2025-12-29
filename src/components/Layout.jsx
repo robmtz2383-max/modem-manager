@@ -1,25 +1,17 @@
 import Header from "./Header";
-import Sidebar from "./Sidebar";
-import { motion } from "framer-motion";
-<div className="min-h-screen bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200"></div>
+
 export default function Layout({ children }) {
   return (
-    <div className="flex min-h-screen bg-slate-100 text-slate-800">
-      
-      <Sidebar />
+    <div className="min-h-screen flex flex-col
+      bg-slate-100 dark:bg-slate-900
+      text-slate-800 dark:text-slate-200">
 
-      <div className="flex-1 flex flex-col">
-        <Header />
+      <Header />
 
-        <motion.main
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="p-6"
-        >
-          {children}
-        </motion.main>
-      </div>
+      <main className="flex-1 p-4 md:p-6 max-w-7xl mx-auto w-full">
+        {children}
+      </main>
+
     </div>
   );
 }
