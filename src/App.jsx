@@ -5,12 +5,14 @@ import EmptyState from './components/EmptyState';
 import ModemCard from './components/ModemCard';
 import Layout from "./components/Layout";
 
+const FIREBASE_URL = 'https://gestor-modems-default-rtdb.firebaseio.com';
+
 export default function App() {
   return (
     <Layout>
       {
 
-const FIREBASE_URL = 'https://gestor-modems-default-rtdb.firebaseio.com';
+
 
 export default function App() {
   const [user, setUser] = useState(null);
