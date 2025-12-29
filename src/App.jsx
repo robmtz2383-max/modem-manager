@@ -627,17 +627,13 @@ export default function App() {
 
   return (
     <Layout>
-    <div className="min-h-screen bg-slate-50 text-slate-800 p-6">
+    <div className="min-h-screen bg-slate-100 p-6">
       <div className="max-w-7xl mx-auto">
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
+        <div className="app-container">
           <div className="flex justify-between items-start mb-6">
             <div>
-              <h1 className="text-2xl font-semibold text-slate-800">
-  Gestor de Módems
-</h1>
-
-             <p className="text-sm text-slate-500 mt-1">{status}</p>
-
+              <h1 className="text-4xl font-extrabold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 bg-clip-text text-transparent">Gestor de Módems</h1>
+              <p className="text-sm text-gray-600 mt-2 font-semibold">{status}</p>
             </div>
             <div className="flex gap-3">
               <button onClick={() => setShowProfile(true)} className="flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-5 py-3 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"><Key size={20} /></button>
