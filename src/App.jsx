@@ -3,6 +3,12 @@ import { Camera, Trash2, Plus, Save, Edit2, X, LogOut, Users, Search, TrendingUp
 import * as XLSX from 'xlsx';
 import EmptyState from './components/EmptyState';
 import ModemCard from './components/ModemCard';
+import Layout from "./components/Layout";
+
+export default function App() {
+  return (
+    <Layout>
+      {
 
 const FIREBASE_URL = 'https://gestor-modems-default-rtdb.firebaseio.com';
 
@@ -895,5 +901,8 @@ export default function App() {
         </div>
       </div>
     </div>
+  );
+}}
+    </Layout>
   );
 }
