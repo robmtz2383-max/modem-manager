@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Trash2, Plus, Save, Edit2, X, LogOut, Users, Search, TrendingUp, Clock, Key, Building2, Briefcase, Download } from 'lucide-react';
+import { Camera, Trash2, Plus, Save, Edit2, X, LogOut, Users, Search, TrendingUp, Clock, Key, Building2, Briefcase, Download, Upload, FileSpreadsheet } from 'lucide-react';
+import jsPDF from 'jspdf';
+import * as XLSX from 'xlsx';
 
 const FIREBASE_URL = 'https://gestor-modems-default-rtdb.firebaseio.com';
 
@@ -380,7 +382,119 @@ export default function App() {
     } catch { alert('Error'); }
   };
 
-  const generatePDFByTienda = async (tiendaNombre) => {
+  const exportTiendasExcel = () => {
+    try {
+      const data = tiendas.map(t => ({
+        'Nombre': t.nombre,
+        'Asesor TI': t.asesor
+      }));
+      
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Tiendas');
+      
+      XLSX.writeFile(wb, `Tiendas_${new Date().toISOString().split('T')[0]}.xlsx`);
+      addHist('Exportar Excel', 'Tiendas exportadas');
+    } catch (error) {
+      console.error('Error al exportar:', error);
+      alert('Error al exportar Excel');
+    }
+  };
+
+  const importTiendasExcel = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = evt.target.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const json = XLSX.utils.sheet_to_json(worksheet);
+        
+        const nuevasTiendas = json.map(row => ({
+          id: 't' + Date.now() + Math.random(),
+          nombre: row['Nombre'] || row['nombre'] || '',
+          asesor: row['Asesor TI'] || row['asesor'] || 'Sin asignar'
+        }));
+        
+        if (nuevasTiendas.length === 0) {
+          alert('No se encontraron datos válidos en el archivo');
+          return;
+        }
+        
+        saveTiendas([...tiendas, ...nuevasTiendas]).then(ok => {
+          if (ok) {
+            alert(`${nuevasTiendas.length} tiendas importadas correctamente`);
+            addHist('Importar Excel', `${nuevasTiendas.length} tiendas`);
+          }
+        });
+      } catch (error) {
+        console.error('Error al importar:', error);
+        alert('Error al leer el archivo. Asegúrate de que sea un archivo Excel válido.');
+      }
+    };
+    reader.readAsBinaryString(file);
+    e.target.value = '';
+  };
+
+  const exportProveedoresExcel = () => {
+    try {
+      const data = proveedores.map(p => ({
+        'Nombre': p.nombre
+      }));
+      
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Proveedores');
+      
+      XLSX.writeFile(wb, `Proveedores_${new Date().toISOString().split('T')[0]}.xlsx`);
+      addHist('Exportar Excel', 'Proveedores exportados');
+    } catch (error) {
+      console.error('Error al exportar:', error);
+      alert('Error al exportar Excel');
+    }
+  };
+
+  const importProveedoresExcel = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = evt.target.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const json = XLSX.utils.sheet_to_json(worksheet);
+        
+        const nuevosProveedores = json.map(row => ({
+          id: 'p' + Date.now() + Math.random(),
+          nombre: row['Nombre'] || row['nombre'] || ''
+        }));
+        
+        if (nuevosProveedores.length === 0) {
+          alert('No se encontraron datos válidos en el archivo');
+          return;
+        }
+        
+        saveProveedores([...proveedores, ...nuevosProveedores]).then(ok => {
+          if (ok) {
+            alert(`${nuevosProveedores.length} proveedores importados correctamente`);
+            addHist('Importar Excel', `${nuevosProveedores.length} proveedores`);
+          }
+        });
+      } catch (error) {
+        console.error('Error al importar:', error);
+        alert('Error al leer el archivo. Asegúrate de que sea un archivo Excel válido.');
+      }
+    };
+    reader.readAsBinaryString(file);
+    e.target.value = '';
+  };
     try {
       const { jsPDF } = window.jspdf;
       const pdf = new jsPDF('p', 'mm', 'a4');
@@ -554,50 +668,72 @@ export default function App() {
           )}
 
           {showTiendas && user.esAdmin && (
-            <div className="bg-orange-50 p-6 rounded-lg mb-6 border-2 border-orange-200">
-              <h2 className="text-xl font-semibold mb-4">Tiendas</h2>
-              <input type="text" value={newTienda.nombre} onChange={(e) => setNewTienda({...newTienda, nombre: e.target.value})} placeholder="Nombre" className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-2" />
-              <input type="text" value={newTienda.asesor} onChange={(e) => setNewTienda({...newTienda, asesor: e.target.value})} placeholder="Asesor TI" className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-3" />
+            <div className="bg-gradient-to-br from-orange-50 to-red-50 p-6 rounded-2xl mb-6 border-4 border-orange-300 shadow-xl">
+              <h2 className="text-2xl font-bold mb-4 bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">Tiendas</h2>
+              
               <div className="flex gap-2 mb-4">
-                <button onClick={editTId ? editTienda : addTienda} className="flex-1 bg-orange-600 text-white px-4 py-2 rounded-lg">Guardar</button>
-                <button onClick={() => {setEditTId(null); setNewTienda({nombre: '', asesor: ''});}} className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg">Cancelar</button>
+                <button onClick={exportTiendasExcel} className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-2 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all">
+                  <FileSpreadsheet size={18} />Exportar Excel
+                </button>
+                <label className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-4 py-2 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all cursor-pointer">
+                  <Upload size={18} />Importar Excel
+                  <input type="file" accept=".xlsx,.xls" onChange={importTiendasExcel} className="hidden" />
+                </label>
+              </div>
+
+              <input type="text" value={newTienda.nombre} onChange={(e) => setNewTienda({...newTienda, nombre: e.target.value})} placeholder="Nombre" className="w-full px-4 py-3 border-2 border-orange-200 rounded-xl mb-2 focus:border-orange-500 focus:ring-4 focus:ring-orange-100 outline-none transition-all" />
+              <input type="text" value={newTienda.asesor} onChange={(e) => setNewTienda({...newTienda, asesor: e.target.value})} placeholder="Asesor TI" className="w-full px-4 py-3 border-2 border-orange-200 rounded-xl mb-3 focus:border-orange-500 focus:ring-4 focus:ring-orange-100 outline-none transition-all" />
+              <div className="flex gap-2 mb-4">
+                <button onClick={editTId ? editTienda : addTienda} className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all">Guardar</button>
+                <button onClick={() => {setEditTId(null); setNewTienda({nombre: '', asesor: ''});}} className="flex-1 bg-gradient-to-r from-gray-300 to-gray-400 text-gray-700 px-4 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all">Cancelar</button>
               </div>
               <div className="space-y-2 max-h-64 overflow-y-auto mb-4">
                 {tiendas.map(t => (
-                  <div key={t.id} className="flex justify-between items-center bg-white p-3 rounded border border-orange-200">
-                    <div><p className="font-semibold">{t.nombre}</p><p className="text-sm text-gray-600">{t.asesor}</p></div>
+                  <div key={t.id} className="flex justify-between items-center bg-white p-4 rounded-xl border-2 border-orange-200 shadow-md hover:shadow-lg transition-all">
+                    <div><p className="font-bold text-lg">{t.nombre}</p><p className="text-sm text-gray-600">{t.asesor}</p></div>
                     <div className="flex gap-2">
-                      <button onClick={() => generatePDFByTienda(t.nombre)} className="text-green-600 hover:text-green-800" title="Generar PDF"><Download size={18} /></button>
-                      <button onClick={() => {setNewTienda(t); setEditTId(t.id);}} className="text-blue-600"><Edit2 size={18} /></button>
-                      <button onClick={() => delTienda(t.id)} className="text-red-600"><Trash2 size={18} /></button>
+                      <button onClick={() => generatePDFByTienda(t.nombre)} className="text-green-600 hover:text-green-800 p-2 hover:bg-green-50 rounded-lg transition-all" title="Generar PDF"><Download size={18} /></button>
+                      <button onClick={() => {setNewTienda(t); setEditTId(t.id);}} className="text-blue-600 hover:text-blue-800 p-2 hover:bg-blue-50 rounded-lg transition-all"><Edit2 size={18} /></button>
+                      <button onClick={() => delTienda(t.id)} className="text-red-600 hover:text-red-800 p-2 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={18} /></button>
                     </div>
                   </div>
                 ))}
               </div>
-              <button onClick={() => setShowTiendas(false)} className="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg">Cerrar</button>
+              <button onClick={() => setShowTiendas(false)} className="bg-gradient-to-r from-gray-300 to-gray-400 text-gray-700 px-6 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all">Cerrar</button>
             </div>
           )}
 
           {showProveedores && user.esAdmin && (
-            <div className="bg-cyan-50 p-6 rounded-lg mb-6 border-2 border-cyan-200">
-              <h2 className="text-xl font-semibold mb-4">Proveedores</h2>
-              <input type="text" value={newProveedor.nombre} onChange={(e) => setNewProveedor({nombre: e.target.value})} placeholder="Nombre" className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-3" />
+            <div className="bg-gradient-to-br from-cyan-50 to-blue-50 p-6 rounded-2xl mb-6 border-4 border-cyan-300 shadow-xl">
+              <h2 className="text-2xl font-bold mb-4 bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">Proveedores</h2>
+              
               <div className="flex gap-2 mb-4">
-                <button onClick={editPId ? editProveedor : addProveedor} className="flex-1 bg-cyan-600 text-white px-4 py-2 rounded-lg">Guardar</button>
-                <button onClick={() => {setEditPId(null); setNewProveedor({nombre: ''});}} className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg">Cancelar</button>
+                <button onClick={exportProveedoresExcel} className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-2 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all">
+                  <FileSpreadsheet size={18} />Exportar Excel
+                </button>
+                <label className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-4 py-2 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all cursor-pointer">
+                  <Upload size={18} />Importar Excel
+                  <input type="file" accept=".xlsx,.xls" onChange={importProveedoresExcel} className="hidden" />
+                </label>
+              </div>
+
+              <input type="text" value={newProveedor.nombre} onChange={(e) => setNewProveedor({nombre: e.target.value})} placeholder="Nombre" className="w-full px-4 py-3 border-2 border-cyan-200 rounded-xl mb-3 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100 outline-none transition-all" />
+              <div className="flex gap-2 mb-4">
+                <button onClick={editPId ? editProveedor : addProveedor} className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-4 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all">Guardar</button>
+                <button onClick={() => {setEditPId(null); setNewProveedor({nombre: ''});}} className="flex-1 bg-gradient-to-r from-gray-300 to-gray-400 text-gray-700 px-4 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all">Cancelar</button>
               </div>
               <div className="space-y-2 max-h-64 overflow-y-auto mb-4">
                 {proveedores.map(p => (
-                  <div key={p.id} className="flex justify-between bg-white p-3 rounded border border-cyan-200">
-                    <p className="font-semibold">{p.nombre}</p>
+                  <div key={p.id} className="flex justify-between bg-white p-4 rounded-xl border-2 border-cyan-200 shadow-md hover:shadow-lg transition-all">
+                    <p className="font-bold text-lg">{p.nombre}</p>
                     <div className="flex gap-2">
-                      <button onClick={() => {setNewProveedor(p); setEditPId(p.id);}} className="text-blue-600"><Edit2 size={18} /></button>
-                      <button onClick={() => delProveedor(p.id)} className="text-red-600"><Trash2 size={18} /></button>
+                      <button onClick={() => {setNewProveedor(p); setEditPId(p.id);}} className="text-blue-600 hover:text-blue-800 p-2 hover:bg-blue-50 rounded-lg transition-all"><Edit2 size={18} /></button>
+                      <button onClick={() => delProveedor(p.id)} className="text-red-600 hover:text-red-800 p-2 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={18} /></button>
                     </div>
                   </div>
                 ))}
               </div>
-              <button onClick={() => setShowProveedores(false)} className="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg">Cerrar</button>
+              <button onClick={() => setShowProveedores(false)} className="bg-gradient-to-r from-gray-300 to-gray-400 text-gray-700 px-6 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all">Cerrar</button>
             </div>
           )}
 
