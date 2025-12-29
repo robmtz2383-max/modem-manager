@@ -1,7 +1,5 @@
 {
-  "name": "modem-manager",
-  "alias": "modem-manager.vercel.app",
+  "framework": "vite",
   "buildCommand": "npm run build",
-  "outputDirectory": ".next",
-  "regions": ["iad1"]
+  "outputDirectory": "dist"
 }
