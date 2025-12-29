@@ -595,8 +595,9 @@ export default function App() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 flex items-center justify-center p-4">
-        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8 max-w-md w-full border-4 border-white">
+          <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-900">
+          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-8 w-full max-w-md">
+
           <div className="text-center mb-6">
             <div className="inline-block p-4 bg-gradient-to-r from-purple-600 to-pink-500 rounded-full mb-4">
               <Building2 size={48} className="text-white" />
