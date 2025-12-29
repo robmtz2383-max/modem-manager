@@ -1,5 +1,7 @@
 {
-  "version": 2,
-  "outputDirectory": "dist",
-  "installCommand": "npm install"
+  "name": "modem-manager",
+  "alias": "modem-manager.vercel.app",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "regions": ["iad1"]
 }
