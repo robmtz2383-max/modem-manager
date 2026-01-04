@@ -21,7 +21,21 @@ export default function App() {
   const [showUsers] = useState(false);
 
   // 🔴 DATOS MOCK TEMPORALES (EVITA BLANCO)
-  const modems = [];
+  const modems = [{
+    id: 'm1',
+    serie: 'ABC123',
+    modelo: 'Huawei B310',
+    proveedor: 'Telcel',
+    estado: 'Activo',
+    tienda: 'Sucursal Centro',
+    fotos: []
+  }
+
+  ];
+
+
+
+
   const filtered = [];
   const tiendas = [];
   const user = { esAdmin: true };
