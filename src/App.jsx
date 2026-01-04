@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 import Layout from './components/Layout';
 import TiendasView from './components/tiendas/TiendasView';
 import ModemsERPView from './components/modems/ModemsERPView';
 import PreviewFotosModal from './components/modals/PreviewFotosModal';
 import PreviewImageModal from './components/modals/PreviewImageModal';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from './firebase';
 
 export default function App() {
   const [previewTienda, setPreviewTienda] = useState(null);
@@ -19,6 +21,19 @@ export default function App() {
   const [showProveedores] = useState(false);
   const [showProfile] = useState(false);
   const [showUsers] = useState(false);
+
+useEffect(() => {
+  const testFirebase = async () => {
+    try {
+      const snap = await getDocs(collection(db, 'modems'));
+      console.log('🔥 Firebase conectado, docs:', snap.size);
+    } catch (e) {
+      console.error('❌ Error Firebase:', e);
+    }
+  };
+  testFirebase();
+}, []);
+
 
   // 🔴 DATOS MOCK TEMPORALES (EVITA BLANCO)
   const modems = [{
@@ -37,6 +52,8 @@ export default function App() {
   const filtered = modems;
   const tiendas = [];
   const user = { esAdmin: true };
+
+
 
   return (
     <Layout>
