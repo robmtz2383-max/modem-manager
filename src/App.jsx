@@ -798,6 +798,7 @@ export default function App() {
                       modem={m}
                       onEdit={() => editModem(m)}
                       onDelete={() => delModem(m.id)}
+                      onViewFotos={(tienda) => setPreviewTienda(tienda)}
                    />
                 ))
               )}
