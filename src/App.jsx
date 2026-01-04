@@ -19,7 +19,9 @@ export default function App() {
   const [showProveedores, setShowProveedores] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showUsers, setShowUsers] = useState(false);
-
+<div style={{ padding: 40, color: 'red', fontSize: 24 }}>
+      ✅ App renderizada correctamente
+    </div>
   return (
     <Layout>
 <div style={{ padding: 40, color: 'green', fontSize: 24 }}>
