@@ -34,9 +34,7 @@ export default function App() {
   ];
 
 
-
-
-  const filtered = [];
+  const filtered = modems;
   const tiendas = [];
   const user = { esAdmin: true };
 
