@@ -2,18 +2,23 @@ import ModemRow from './ModemRow';
 
 export default function TiendaSection({
   tienda,
-  modems,
+  modems = [],
   abierta,
   onToggle,
   onEdit,
   onDelete,
   onVerFotos
 }) {
+  const tieneFotos = modems.some(m => m.fotos?.length);
+
   return (
     <div className="bg-white border border-slate-200 rounded-lg shadow-sm">
 
       {/* HEADER */}
-      <div className="flex justify-between items-center p-4 bg-slate-50 border-b">
+      <div
+        className="flex justify-between items-center p-4 bg-slate-50 border-b
+                   sticky top-0 z-10"
+      >
         <div>
           <h3 className="font-semibold text-slate-800">{tienda}</h3>
           <p className="text-sm text-slate-500">
@@ -24,12 +29,22 @@ export default function TiendaSection({
         <div className="flex items-center gap-3">
           <button
             onClick={() => onVerFotos(tienda)}
-            className="text-sm text-slate-600 hover:text-indigo-600 hover:bg-slate-100 px-3 py-1.5 rounded-md"
+            disabled={!tieneFotos}
+            className={`text-sm px-3 py-1.5 rounded-md transition
+              ${tieneFotos
+                ? 'text-slate-600 hover:text-indigo-600 hover:bg-slate-100'
+                : 'text-slate-400 cursor-not-allowed'
+              }`}
+            title={!tieneFotos ? 'Esta tienda no tiene fotos' : 'Ver fotos'}
           >
             🖼️ Ver fotos
           </button>
 
-          <button onClick={onToggle}>
+          <button
+            onClick={onToggle}
+            className="text-slate-600 hover:text-indigo-600"
+            title={abierta ? 'Cerrar' : 'Abrir'}
+          >
             {abierta ? '▲' : '▼'}
           </button>
         </div>
