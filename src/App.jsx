@@ -22,7 +22,8 @@ export default function App() {
 
   return (
     <Layout>
-
+<div style={{ padding: 40, color: 'green', fontSize: 24 }}>
+        ✅ App dentro de Layout
       {/* ✅ VISTA PRINCIPAL ERP */}
       {!showForm &&
         !showStats &&
@@ -67,7 +68,7 @@ export default function App() {
         image={previewImage}
         onClose={() => setPreviewImage(null)}
       />
-
+</div>
     </Layout>
   );
 }
