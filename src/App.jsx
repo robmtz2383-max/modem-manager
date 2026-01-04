@@ -11,22 +11,24 @@ export default function App() {
   const [previewImage, setPreviewImage] = useState(null);
   const [busquedaTienda, setBusquedaTienda] = useState('');
 
-  // ⚠️ Estos estados DEBEN existir
-  const [showForm, setShowForm] = useState(false);
-  const [showStats, setShowStats] = useState(false);
-  const [showHistorial, setShowHistorial] = useState(false);
-  const [showTiendas, setShowTiendas] = useState(false);
-  const [showProveedores, setShowProveedores] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
-  const [showUsers, setShowUsers] = useState(false);
-<div style={{ padding: 40, color: 'red', fontSize: 24 }}>
-      ✅ App renderizada correctamente
-    </div>
+  // estados de vistas
+  const [showForm] = useState(false);
+  const [showStats] = useState(false);
+  const [showHistorial] = useState(false);
+  const [showTiendas] = useState(false);
+  const [showProveedores] = useState(false);
+  const [showProfile] = useState(false);
+  const [showUsers] = useState(false);
+
+  // 🔴 DATOS MOCK TEMPORALES (EVITA BLANCO)
+  const modems = [];
+  const filtered = [];
+  const tiendas = [];
+  const user = { esAdmin: true };
+
   return (
     <Layout>
-<div style={{ padding: 40, color: 'green', fontSize: 24 }}>
-        ✅ App dentro de Layout
-      {/* ✅ VISTA PRINCIPAL ERP */}
+      {/* VISTA PRINCIPAL */}
       {!showForm &&
         !showStats &&
         !showHistorial &&
@@ -36,29 +38,24 @@ export default function App() {
         !showUsers && (
           <ModemsERPView
             modems={filtered}
-            onEdit={editModem}
-            onDelete={delModem}
+            onEdit={() => {}}
+            onDelete={() => {}}
             onVerFotos={setPreviewTienda}
           />
         )}
 
-      {/* 🏬 TIENDAS */}
       {showTiendas && (
         <TiendasView
           tiendas={tiendas}
           user={user}
           busqueda={busquedaTienda}
           setBusqueda={setBusquedaTienda}
-          onEdit={t => {
-            setNewTienda(t);
-            setEditTId(t.id);
-          }}
-          onDelete={delTienda}
-          onClose={() => setShowTiendas(false)}
+          onEdit={() => {}}
+          onDelete={() => {}}
+          onClose={() => {}}
         />
       )}
 
-      {/* 🖼 MODALES */}
       <PreviewFotosModal
         tienda={previewTienda}
         modems={modems}
@@ -70,7 +67,6 @@ export default function App() {
         image={previewImage}
         onClose={() => setPreviewImage(null)}
       />
-</div>
     </Layout>
   );
 }
