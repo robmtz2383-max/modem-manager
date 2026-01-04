@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Trash2, Plus, Save, Edit2, X, LogOut, Users, Search, TrendingUp, Clock, Key, Building2, Briefcase, Download, Upload, FileSpreadsheet } from 'lucide-react';
+import { Trash2, Plus, Save, Edit2, X, LogOut, Users, Search, TrendingUp, Clock, Key, Building2, Briefcase, Download, Upload, FileSpreadsheet } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import EmptyState from './components/EmptyState';
 import ModemCard from './components/ModemCard';
@@ -13,9 +13,6 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [loginMode, setLoginMode] = useState(true);
   const [loginData, setLoginData] = useState({ usuario: '', contraseña: '' });
-  const [showScanner, setShowScanner] = useState(false);
-  const [showCamera, setShowCamera] = useState(false);
-  const [stream, setStream] = useState(null);
   const [users, setUsers] = useState([]);
   const [modems, setModems] = useState([]);
   const [tiendas, setTiendas] = useState([]);
@@ -170,97 +167,6 @@ export default function App() {
   const logout = () => {
     setUser(null);
     window.location.hash = '';
-  };
-
-  const startScanner = () => {
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(videoStream => {
-      setStream(videoStream);
-      setShowScanner(true);
-      setTimeout(() => {
-        const video = document.getElementById('scanner-video');
-        if (video) {
-          video.srcObject = videoStream;
-          video.play();
-          scanBarcode(video);
-        }
-      }, 100);
-    }).catch(() => {
-      alert('Permiso de cámara denegado');
-    });
-  };
-
-  const scanBarcode = (video) => {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    
-    const scan = () => {
-      if (!showScanner) return;
-      
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const code = jsQR(imageData.data, imageData.width, imageData.height);
-      
-      if (code) {
-        setFormData(prev => ({ ...prev, serie: code.data }));
-        stopScanner();
-        alert('Código escaneado: ' + code.data);
-      } else {
-        requestAnimationFrame(scan);
-      }
-    };
-    
-    scan();
-  };
-
-  const stopScanner = () => {
-    if (stream) {
-      stream.getTracks().forEach(t => t.stop());
-      setStream(null);
-    }
-    setShowScanner(false);
-  };
-
-  const startCamera = () => {
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(videoStream => {
-      setStream(videoStream);
-      setShowCamera(true);
-      setTimeout(() => {
-        const video = document.getElementById('camera-video');
-        if (video) {
-          video.srcObject = videoStream;
-          video.play();
-        }
-      }, 100);
-    }).catch(() => {
-      alert('Permiso de cámara denegado');
-    });
-  };
-
-  const capturePhoto = () => {
-    const video = document.getElementById('camera-video');
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const photoData = canvas.toDataURL('image/jpeg', 0.8);
-    
-    if (formData.fotos.length < 3) {
-      setFormData(prev => ({ ...prev, fotos: [...prev.fotos, photoData] }));
-    } else {
-      alert('Máximo 3 fotos');
-    }
-  };
-
-  const stopCamera = () => {
-    if (stream) {
-      stream.getTracks().forEach(t => t.stop());
-      setStream(null);
-    }
-    setShowCamera(false);
   };
 
   const updatePass = async () => {
@@ -633,7 +539,7 @@ export default function App() {
         <div className="app-container">
           <div className="flex justify-between items-start mb-6">
             <div>
-              <h1 className="text-4xl font-extrabold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 bg-clip-text text-transparent">Gestor de Módems</h1>
+              <h1 className="text-3xl font-bold text-slate-800">Gestor de Módems</h1>
               <p className="text-sm text-gray-600 mt-2 font-semibold">{status}</p>
             </div>
             <div className="flex gap-3">
@@ -658,7 +564,8 @@ export default function App() {
           )}
 
           {showTiendas && user.esAdmin && (
-            <div className="bg-gradient-to-br from-orange-50 to-red-50 p-6 rounded-2xl mb-6 border-4 border-orange-300 shadow-xl">
+            <div className="bg-white border border-slate-200 rounded-lg shadow-sm">
+
               <h2 className="text-2xl font-bold mb-4 bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">Tiendas</h2>
               
               <div className="flex gap-2 mb-4">
@@ -829,7 +736,8 @@ export default function App() {
           )}
 
           {showForm && (
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-2xl mb-6 border-2 border-blue-200 shadow-xl">
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-2xl mb-6 border border-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500
+ ">
               <h2 className="text-2xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{editId ? 'Editar' : 'Nuevo'} Módem</h2>
               <select value={formData.tienda} onChange={(e) => setFormData({...formData, tienda: e.target.value})} className="w-full px-4 py-3 border-2 border-blue-200 rounded-xl mb-3 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all">
                 <option value="">Seleccionar Tienda</option>
@@ -843,15 +751,6 @@ export default function App() {
               <input type="text" value={formData.modelo} onChange={(e) => setFormData({...formData, modelo: e.target.value})} placeholder="Modelo" className="w-full px-4 py-3 border-2 border-blue-200 rounded-xl mb-4 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all" />
               
               <h3 className="font-bold mb-3 text-lg">Fotos ({formData.fotos.length}/3)</h3>
-              {showCamera && (
-                <div className="mb-4 p-4 bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl shadow-xl">
-                  <video id="camera-video" className="w-full h-64 bg-black rounded-xl mb-3" />
-                  <div className="flex gap-3">
-                    <button onClick={capturePhoto} className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-3 rounded-xl font-bold shadow-lg">📸 Capturar</button>
-                    <button onClick={stopCamera} className="flex-1 bg-gradient-to-r from-red-500 to-pink-500 text-white px-4 py-3 rounded-xl font-bold shadow-lg">Cerrar</button>
-                  </div>
-                </div>
-              )}
               
               <div className="mb-4 flex flex-wrap gap-4">
                 {formData.fotos.map((f, i) => (
@@ -862,10 +761,6 @@ export default function App() {
                 ))}
                 {formData.fotos.length < 3 && (
                   <>
-                    <button onClick={startCamera} className="w-32 h-32 flex flex-col items-center justify-center border-4 border-dashed border-blue-400 rounded-xl cursor-pointer hover:border-blue-600 bg-gradient-to-br from-blue-50 to-indigo-50 hover:scale-105 transition-all shadow-lg">
-                      <Camera size={32} className="text-blue-500 mb-2" />
-                      <span className="text-xs text-blue-600 font-bold">Tomar foto</span>
-                    </button>
                     <label className="w-32 h-32 flex flex-col items-center justify-center border-4 border-dashed border-purple-400 rounded-xl cursor-pointer hover:border-purple-600 bg-gradient-to-br from-purple-50 to-pink-50 hover:scale-105 transition-all shadow-lg">
                       <Plus size={32} className="text-purple-500 mb-2" />
                       <span className="text-xs text-purple-600 font-bold">Subir archivo</span>
