@@ -40,6 +40,9 @@ export default function App() {
   const [editTId, setEditTId] = useState(null);
   const [editPId, setEditPId] = useState(null);
   const [status, setStatus] = useState('');
+  const [previewTienda, setPreviewTienda] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
+
 
   useEffect(() => { 
     loadUsers();
@@ -578,6 +581,14 @@ export default function App() {
                 </label>
               </div>
 
+<button
+  onClick={() => setPreviewTienda(t.nombre)}
+  className="text-slate-600 hover:text-indigo-600 p-2 hover:bg-slate-100 rounded-lg transition"
+  title="Ver fotos"
+>
+  🖼️
+</button>
+
               <input type="text" value={newTienda.nombre} onChange={(e) => setNewTienda({...newTienda, nombre: e.target.value})} placeholder="Nombre" className="w-full px-4 py-3 border-2 border-orange-200 rounded-xl mb-2 focus:border-orange-500 focus:ring-4 focus:ring-orange-100 outline-none transition-all" />
               <input type="text" value={newTienda.asesor} onChange={(e) => setNewTienda({...newTienda, asesor: e.target.value})} placeholder="Asesor TI" className="w-full px-4 py-3 border-2 border-orange-200 rounded-xl mb-3 focus:border-orange-500 focus:ring-4 focus:ring-orange-100 outline-none transition-all" />
               <div className="flex gap-2 mb-4">
@@ -795,6 +806,62 @@ export default function App() {
         </div>
       </div>
     </div>
+                      {previewTienda && (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full p-6">
+      
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-semibold text-slate-800">
+          Fotos – {previewTienda}
+        </h2>
+        <button
+          onClick={() => setPreviewTienda(null)}
+          className="text-slate-500 hover:text-slate-700"
+        >
+          ✕
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-h-[70vh] overflow-y-auto">
+        {modems
+          .filter(m => m.tienda === previewTienda && m.fotos?.length)
+          .flatMap(m => m.fotos.map((f, i) => (
+            <img
+              key={m.id + i}
+              src={f}
+              alt="Foto módem"
+              onClick={() => setPreviewImage(f)}
+              className="w-full h-32 object-cover rounded border border-slate-200 cursor-pointer hover:shadow-md transition"
+            />
+          )))
+        }
+
+        {/* Si no hay fotos */}
+        {modems.filter(m => m.tienda === previewTienda && m.fotos?.length).length === 0 && (
+          <p className="text-slate-500 col-span-full text-center">
+            Esta tienda no tiene fotos registradas
+          </p>
+        )}
+      </div>
+    </div>
+  </div>
+)}
+
+{previewImage && (
+  <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+    <img
+      src={previewImage}
+      alt="Vista completa"
+      className="max-h-[90vh] max-w-[90vw] rounded shadow-2xl"
+    />
+    <button
+      onClick={() => setPreviewImage(null)}
+      className="fixed top-6 right-6 text-white text-2xl"
+    >
+      ✕
+    </button>
+  </div>
+)}
     </Layout>
   );
 }
