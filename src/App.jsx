@@ -42,6 +42,8 @@ export default function App() {
   const [status, setStatus] = useState('');
   const [previewTienda, setPreviewTienda] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
+  const [tiendaAbierta, setTiendaAbierta] = useState(null);
+
 
 
   useEffect(() => { 
@@ -535,6 +537,13 @@ export default function App() {
     );
   }
 
+const modemsPorTienda = modems.reduce((acc, m) => {
+  acc[m.tienda] = acc[m.tienda] || [];
+  acc[m.tienda].push(m);
+  return acc;
+}, {});
+
+
   return (
     <Layout>
     <div className="min-h-screen bg-slate-100 p-6">
@@ -863,6 +872,95 @@ export default function App() {
     </button>
   </div>
 )}
+
+{!showForm && !showStats && !showHistorial && !showTiendas && !showProveedores && !showProfile && !showUsers && (
+
+  <div className="space-y-4">
+
+    {Object.entries(modemsPorTienda).map(([tienda, lista]) => (
+      <div
+        key={tienda}
+        className="bg-white border border-slate-200 rounded-lg shadow-sm"
+      >
+
+        {/* HEADER TIENDA */}
+        <div className="flex items-center justify-between p-4 bg-slate-50 border-b">
+          <div>
+            <h3 className="font-semibold text-slate-800">{tienda}</h3>
+            <p className="text-sm text-slate-500">
+              {lista.length} módem{lista.length !== 1 && 's'}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setPreviewTienda(tienda)}
+              className="text-sm text-slate-600 hover:text-indigo-600 hover:bg-slate-100 px-3 py-1.5 rounded-md transition"
+            >
+              🖼️ Ver fotos
+            </button>
+
+            <button
+              onClick={() =>
+                setTiendaAbierta(tiendaAbierta === tienda ? null : tienda)
+              }
+              className="text-slate-600 hover:text-slate-900"
+            >
+              {tiendaAbierta === tienda ? '▲' : '▼'}
+            </button>
+          </div>
+        </div>
+
+        {/* TABLA */}
+        {tiendaAbierta === tienda && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-100 text-slate-600">
+                <tr>
+                  <th className="p-3 text-left">Serie</th>
+                  <th className="p-3 text-left">Modelo</th>
+                  <th className="p-3 text-left">Proveedor</th>
+                  <th className="p-3 text-left">Estado</th>
+                  <th className="p-3 text-right">Acciones</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {lista.map(m => (
+                  <tr
+                    key={m.id}
+                    className="border-t hover:bg-slate-50"
+                  >
+                    <td className="p-3">{m.serie}</td>
+                    <td className="p-3">{m.modelo}</td>
+                    <td className="p-3">{m.proveedor}</td>
+                    <td className="p-3">{m.estado}</td>
+                    <td className="p-3 text-right">
+                      <button
+                        onClick={() => editModem(m)}
+                        className="text-indigo-600 hover:underline mr-3"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => delModem(m.id)}
+                        className="text-red-600 hover:underline"
+                      >
+                        Eliminar
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    ))}
+
+  </div>
+)}
+
     </Layout>
   );
 }
