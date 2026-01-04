@@ -43,6 +43,9 @@ export default function App() {
   const [previewTienda, setPreviewTienda] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
   const [tiendaAbierta, setTiendaAbierta] = useState(null);
+  const [busquedaTienda, setBusquedaTienda] = useState('');
+  const [mostrarSugerencias, setMostrarSugerencias] = useState(false);
+
 
 
 
@@ -543,6 +546,8 @@ const modemsPorTienda = modems.reduce((acc, m) => {
   return acc;
 }, {});
 
+const tiendasUnicas = [...new Set(modems.map(m => m.tienda))].sort();
+
 
   return (
     <Layout>
@@ -590,13 +595,55 @@ const modemsPorTienda = modems.reduce((acc, m) => {
                 </label>
               </div>
 
-<button
-  onClick={() => setPreviewTienda(t.nombre)}
-  className="text-slate-600 hover:text-indigo-600 p-2 hover:bg-slate-100 rounded-lg transition"
-  title="Ver fotos"
->
-  🖼️
-</button>
+{showTiendas && (
+  <div className="space-y-4">
+
+    <h2 className="text-2xl font-semibold text-slate-800">
+      Tiendas
+    </h2>
+
+    {/* 🔍 INPUT AUTOCOMPLETE VA AQUÍ */}
+    <div className="relative max-w-md">
+      <input
+        type="text"
+        placeholder="Buscar tienda..."
+        value={busquedaTienda}
+        onChange={e => {
+          setBusquedaTienda(e.target.value);
+          setMostrarSugerencias(true);
+        }}
+        onFocus={() => setMostrarSugerencias(true)}
+        onBlur={() => setTimeout(() => setMostrarSugerencias(false), 150)}
+        className="w-full px-4 py-2 border border-slate-300 rounded-md
+                   focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+      />
+
+      {mostrarSugerencias && busquedaTienda && (
+        <div className="absolute z-10 w-full bg-white border border-slate-200 rounded-md shadow-md mt-1 max-h-48 overflow-y-auto">
+          {tiendasUnicas
+            .filter(t =>
+              t.toLowerCase().includes(busquedaTienda.toLowerCase())
+            )
+            .map(tienda => (
+              <button
+                key={tienda}
+                onClick={() => {
+                  setBusquedaTienda(tienda);
+                  setMostrarSugerencias(false);
+                }}
+                className="w-full text-left px-4 py-2 text-sm hover:bg-slate-100"
+              >
+                {tienda}
+              </button>
+            ))}
+        </div>
+      )}
+    </div>
+
+    {/* 👇 AQUÍ SIGUE LA LISTA DE TIENDAS */}
+  </div>
+)}
+
 
               <input type="text" value={newTienda.nombre} onChange={(e) => setNewTienda({...newTienda, nombre: e.target.value})} placeholder="Nombre" className="w-full px-4 py-3 border-2 border-orange-200 rounded-xl mb-2 focus:border-orange-500 focus:ring-4 focus:ring-orange-100 outline-none transition-all" />
               <input type="text" value={newTienda.asesor} onChange={(e) => setNewTienda({...newTienda, asesor: e.target.value})} placeholder="Asesor TI" className="w-full px-4 py-3 border-2 border-orange-200 rounded-xl mb-3 focus:border-orange-500 focus:ring-4 focus:ring-orange-100 outline-none transition-all" />
