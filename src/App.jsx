@@ -22,37 +22,41 @@ export default function App() {
   const [showProfile] = useState(false);
   const [showUsers] = useState(false);
 
+console.log('DATA FIRESTORE:', data);
+
+
 useEffect(() => {
-  const testFirebase = async () => {
+  const loadModems = async () => {
     try {
       const snap = await getDocs(collection(db, 'modems'));
-      console.log('🔥 Firebase conectado, docs:', snap.size);
+      const data = snap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      setModems(data);
+      setFiltered(data);
+
+      console.log('✅ Módems cargados:', data.length);
     } catch (e) {
-      console.error('❌ Error Firebase:', e);
+      console.error('❌ Error cargando módems:', e);
     }
   };
-  testFirebase();
+
+  loadModems();
 }, []);
 
 
+
   // 🔴 DATOS MOCK TEMPORALES (EVITA BLANCO)
-  const modems = [{
-    id: 'm1',
-    serie: 'ABC123',
-    modelo: 'Huawei B310',
-    proveedor: 'Telcel',
-    estado: 'Activo',
-    tienda: 'Sucursal Centro',
-    fotos: []
-  }
-
-  ];
-
-
-  const filtered = modems;
+  const [modems, setModems] = useState([]);
+  const [filtered, setFiltered] = useState([]);
   const tiendas = [];
   const user = { esAdmin: true };
 
+if (!Array.isArray(filtered)) {
+  return <div>Error: datos no válidos</div>;
+}
 
 
   return (
@@ -65,6 +69,7 @@ useEffect(() => {
         !showProveedores &&
         !showProfile &&
         !showUsers && (
+    
           <ModemsERPView
             modems={filtered}
             onEdit={() => {}}
