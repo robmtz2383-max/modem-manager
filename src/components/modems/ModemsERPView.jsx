@@ -11,9 +11,10 @@ export default function ModemsERPView({
 
   const modemsPorTienda = useMemo(() => {
     return modems.reduce((acc, m) => {
-      const tiendaKey = m.tienda || 'Sin tienda';
-      acc[tiendaKey] = acc[tiendaKey] || [];
-      acc[tiendaKey].push(m);
+      const tienda = m.tienda?.trim() || 'Sin tienda';
+        acc[tienda] = acc[tienda] || [];
+        acc[tienda].push(m);
+
       return acc;
     }, {});
   }, [modems]);
